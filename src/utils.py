@@ -3,8 +3,10 @@ import pandas as pd
 import numpy as np
 import os
 from sklearn.metrics import mean_squared_error, mean_absolute_error
+from pathlib import Path
 
 DEFAULT_PATH = "C:/Users/oldan/Desktop/RuralDevelopment/progetto-tirocinio/data/processed_italy_data.xlsx"
+RESULTS_PATH = "C:/Users/oldan/Desktop/RuralDevelopment/progetto-tirocinio/results/models_performance.xlsx"
 
 UNUSABLE = [
     "Rural population living in areas where elevation is below 5 meters (% of total population)",
@@ -12,7 +14,7 @@ UNUSABLE = [
     "Surface area (sq. km)",
     "Rural land area (sq. km)",
     "Land area (sq. km)",
-    "Average prcipitation in depth (mm per year)",
+    "Average precipitation in depth (mm per year)",
     "Agricultural irrigated land (% of total agricultural land)",
     "Rural land area where elevation is below 5 meters (% of total land area)",
     "Rural land area where elevation is below 5 meters (sq. km)"
@@ -80,15 +82,9 @@ def load_data(filepath=DEFAULT_PATH):
     if unusable_cols:
         df_wide = df_wide.drop(columns=unusable_cols)
     print(f"Dataset caricato: {df_wide.shape[0]} anni, {df_wide.shape[1]} variabili.")
-    return 
+    return df_wide
 
-def mape(y_true, y_pred):
-    mask = y_true != 0
-    if not mask.any():
-        return np.nan
-    return np.mean(np.abs((y_true[mask] - y_pred[mask]) / y_true[mask])) * 100
-
-def plot_results(df, train, test, prediction, model_name, variable_name, calc_mape):
+def plot_results(df, train, test, prediction, model_name, variable_name, calc_rmse):
     """
     Plotta i risultati e salva l'immagine in una cartella specifica.
     
@@ -109,7 +105,7 @@ def plot_results(df, train, test, prediction, model_name, variable_name, calc_ma
     ax.plot(train['Year'], train['Value'], '-', color=COLORS['train'], label='Train')
     ax.plot(test['Year'], test['Value'], '-', color=COLORS['test'], label='Test')
     ax.plot(test['Year'], prediction, '--', color=COLORS['pred'], label=f'Predicted ({model_name})')
-    ax.set_title(f'{variable_name} - Historical Mean (MAPE: {calc_mape:.2f}%)')
+    ax.set_title(f'{variable_name} - {model_name} (RMSE: {calc_rmse:.2f}%)')
     ax.set_xlabel('Year')
     ax.set_ylabel('Value')
     test_start = int(test['Year'].min())
@@ -134,44 +130,92 @@ def plot_results(df, train, test, prediction, model_name, variable_name, calc_ma
     plt.show()
     plt.close()
 
-def create_sequences(data, n_steps_in, n_steps_out=1):
-    """
-    Trasforma una serie temporale in campioni per Apprendimento Supervisionato.
-    n_steps_in: quanti step guardare indietro (es. 12 mesi)
-    n_steps_out: quanti step predire in avanti (es. 1 mese)
-    """
-    X, y = [], []
-    for i in range(len(data)):
-        # Trova la fine del pattern corrente
-        end_ix = i + n_steps_in
-        out_end_ix = end_ix + n_steps_out
-        
-        # Controlla se siamo oltre la lunghezza del dataset
-        if out_end_ix > len(data):
-            break
-            
-        # Raccogli input e output
-        seq_x = data[i:end_ix]
-        seq_y = data[end_ix:out_end_ix]
-        
-        X.append(seq_x)
-        y.append(seq_y)
-        
-    return np.array(X), np.array(y)
-
 def evaluate_forecast(y_true, y_pred):
     """
-    Restituisce un dizionario con tutte le metriche che ti servono.
+    Calcola RMSE, MAE e un MAPE 'sicuro' (gestisce divisione per zero).
+    y_true: Array dei valori reali
+    y_pred: Array dei valori predetti
     """
+    y_true = np.array(y_true).flatten()
+    y_pred = np.array(y_pred).flatten()
+    
     mse = mean_squared_error(y_true, y_pred)
     rmse = np.sqrt(mse)
     mae = mean_absolute_error(y_true, y_pred)
     
-    # MAPE (Gestione divisione per zero se necessario)
-    mape = np.mean(np.abs((y_true - y_pred) / y_true)) * 100
-    
+    # Evitiamo divisione per zero: calcoliamo MAPE solo dove y_true != 0
+    mask = y_true != 0
+    if np.any(mask):
+        # Calcolo standard MAPE: mean(|(true - pred) / true|) * 100
+        mape = np.mean(np.abs((y_true[mask] - y_pred[mask]) / y_true[mask])) * 100
+    else:
+        mape = np.nan  # Se tutti i valori sono 0, il MAPE è impossibile
+        
+    # Se il MAPE è enorme (>1000%), è probabile che ci siano valori vicini allo zero.
+    # In quel caso, meglio restituire NaN o un cap, per non rovinare i grafici.
+    if mape > 5000: 
+        mape = np.nan
+
     return {
         "RMSE": round(rmse, 4),
         "MAE": round(mae, 4),
-        "MAPE": round(mape, 2)
+        "MAPE": round(mape, 2) if not np.isnan(mape) else None
     }
+
+def save_metrics(model_name, variable_name, metrics, filepath=RESULTS_PATH):
+    """
+    Salva le metriche di performance in un file Excel cumulativo.
+    Se la combinazione (Indicator, Model) esiste già, la aggiorna.
+    
+    Parametri:
+    - model_name: Nome del modello
+    - variable_name: Nome della variabile
+    - metrics: Dizionario con le metriche (output di evaluate_forecast)
+    - filepath: Percorso del file Excel
+    """
+    
+    new_data = {
+        "Indicator": variable_name,
+        "Model": model_name,
+        "RMSE": metrics.get("RMSE"),
+        "MAE": metrics.get("MAE"),
+        "MAPE": metrics.get("MAPE")
+    }
+    new_row = pd.DataFrame([new_data])
+
+    folder = os.path.dirname(filepath)
+    if folder and not os.path.exists(folder):
+        os.makedirs(folder)
+
+    if os.path.exists(filepath):
+        try:
+            df = pd.read_excel(filepath)
+            
+            # 4. Logica "Smart Update":
+            # Rimuovi la vecchia entry per questo specifico Modello e Variabile (se esiste)
+            # così evitiamo duplicati se rilanci il codice.
+            mask = (df['Indicator'] == variable_name) & (df['Model'] == model_name)
+            df = df[~mask]
+            
+            # Aggiungi la nuova riga
+            df = pd.concat([df, new_row], ignore_index=True)
+            
+        except PermissionError:
+            print(f"ERRORE: Chiudi il file Excel '{filepath}' prima di salvare!")
+            return
+        except Exception as e:
+            print(f"Errore durante la lettura del file risultati: {e}")
+            return
+    else:
+        # Se il file non esiste, inizia con la nuova riga
+        df = new_row
+
+    # 5. Ordina per Variabile e poi per RMSE (così vedi subito il migliore)
+    if 'RMSE' in df.columns:
+        df = df.sort_values(by=['Indicator', 'RMSE'])
+
+    try:
+        df.to_excel(filepath, index=False)
+        print(f"Metriche salvate per {model_name} su {variable_name}")
+    except PermissionError:
+        print(f"ERRORE CRITICO: Impossibile salvare. Il file '{filepath}' è aperto in Excel? Chiudilo!")
