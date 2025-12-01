@@ -4,58 +4,10 @@ import numpy as np
 import os
 from sklearn.metrics import mean_squared_error, mean_absolute_error
 from pathlib import Path
-
-DEFAULT_PATH = "C:/Users/oldan/Desktop/RuralDevelopment/progetto-tirocinio/data/processed_italy_data.xlsx"
-RESULTS_PATH = "C:/Users/oldan/Desktop/RuralDevelopment/progetto-tirocinio/results/models_performance.xlsx"
-
-UNUSABLE = [
-    "Rural population living in areas where elevation is below 5 meters (% of total population)",
-    "Access to electricity, rural (% of rural population)",
-    "Surface area (sq. km)",
-    "Rural land area (sq. km)",
-    "Land area (sq. km)",
-    "Average precipitation in depth (mm per year)",
-    "Agricultural irrigated land (% of total agricultural land)",
-    "Rural land area where elevation is below 5 meters (% of total land area)",
-    "Rural land area where elevation is below 5 meters (sq. km)"
-]
-
-SAFE_VAR_NAME = {
-    "Rural population (% of total population)" : "population_percent",
-    "Rural population growth (annual %)" : "population_growth",
-    "Rural population" : "population_abs",
-    "Employment in agriculture (% of total employment)" : "employment_tot",
-    "Employment in agriculture, male (% of male employment)" : "employment_male",
-    "Employment in agriculture, female (% of female employment)" : "employment_female",
-    "Forest area (% of land area)" : "forestarea_percent",
-    "Forest area (sq. km)" : "forestarea_abs",
-    "Agricultural land (% of land area)" : "agriland_percent",
-    "Agricultural land (sq. km)" : "agriland_abs",
-    "Arable land (% of land area)" : "arableland_percent",
-    "Arable land (hectares per person)" : "arableland_person",
-    "Arable land (hectares)" : "arableland_abs",
-    "Land under cereal production (hectares)" : "cerealland_abs",
-    "Permanent cropland (% of land area)" : "cropland_percent",
-    "Annual freshwater withdrawals, agriculture (% of total freshwater withdrawal)" : "withdrawals_percent",
-    "Fertilizer consumption (kilograms per hectare of arable land)" : "fertilizer_abs",
-    "Fertilizer consumption (% of fertilizer production)" : "fertilizer_percent",
-    "Livestock production index (2014-2016 = 100)" : "livestock_production_index",
-    "Food production index (2014-2016 = 100)" : "food_production_index",
-    "Crop production index (2014-2016 = 100)" : "crop_production_index",
-    "Cereal production (metric tons)" : "cereal_production",
-    "Cereal yield (kg per hectare)" : "cerealyield_abs",
-    "Agriculture, forestry, and fishing, value added (% of GDP)" : "valueadded_percent",
-    "Agriculture, forestry, and fishing, value added (current US$)" : "valueadded_dollars",
-    "Agricultural raw materials exports (% of merchandise exports)" : "exports_percent",
-    "Agricultural raw materials imports (% of merchandise imports)" : "imports_percent"    
-}
-
-COLORS = {
-    'train': 'black',
-    'test': '#1f77b4',
-    'pred': '#d62728',
-    'pred_multi': ['#d62728', '#2ca02c', '#ff7f0e', '#9467bd']
-}
+import statsmodels.api as sm
+from statsmodels.graphics.tsaplots import plot_acf
+import scipy.stats as stats
+from src.config import DEFAULT_PATH, SAFE_VAR_NAME
 
 def load_data(filepath=DEFAULT_PATH):
     """
@@ -129,6 +81,53 @@ def plot_results(df, train, test, prediction, model_name, variable_name, calc_rm
     print(f"Grafico salvato in: {full_path}")
     plt.show()
     plt.close()
+
+def analyze_residuals(y_true, y_pred, model_name, indicator_name):
+    """
+    Calcola e plotta l'analisi dei residui:
+    1. Line plot dei residui (per vedere trend residui)
+    2. Istogramma (per vedere normalità)
+    3. ACF Plot (per vedere autocorrelazione non catturata)
+    """
+    residuals = y_true - y_pred
+    
+    # Creazione figura con 3 subplot
+    fig = plt.figure(figsize=(12, 8))
+    layout = (2, 2)
+    ax1 = plt.subplot2grid(layout, (0, 0), colspan=2) # Line plot largo sopra
+    ax2 = plt.subplot2grid(layout, (1, 0))            # Istogramma sotto sx
+    ax3 = plt.subplot2grid(layout, (1, 1))            # ACF sotto dx
+    
+    # A. Residui nel tempo
+    ax1.plot(residuals, color='purple', linewidth=1.5)
+    ax1.axhline(0, color='black', linestyle='--', linewidth=1)
+    ax1.set_title(f'Residui nel tempo: {indicator_name} ({model_name})')
+    ax1.set_ylabel('Errore')
+    ax1.grid(True, alpha=0.3)
+    
+    # B. Istogramma (Distribuzione)
+    ax2.hist(residuals, bins=10, color='gray', edgecolor='black', alpha=0.7, density=True)
+    ax2.set_title('Distribuzione dei Residui')
+    # Aggiungi una curva normale ideale per confronto
+    xmin, xmax = ax2.get_xlim()
+    x = np.linspace(xmin, xmax, 100)
+    p = stats.norm.pdf(x, np.mean(residuals), np.std(residuals))
+    ax2.plot(x, p, 'k', linewidth=2, label='Normale')
+    ax2.legend()
+    
+    # C. ACF Plot (Autocorrelazione)
+    # lags=min(10, len(residuals)-1) evita errori se hai pochi dati di test
+    sm.graphics.tsa.plot_acf(residuals, ax=ax3, lags=min(10, len(residuals)//2 - 1), zero=False)
+    ax3.set_title('Autocorrelazione dei Residui (ACF)')
+    
+    plt.tight_layout()
+    plt.show()
+    plt.close() # Chiude per non intasare la memoria
+    
+    return {
+        'mean_residual': np.mean(residuals),
+        'std_residual': np.std(residuals)
+    }
 
 def evaluate_forecast(y_true, y_pred):
     """
