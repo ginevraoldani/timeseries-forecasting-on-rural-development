@@ -1,5 +1,21 @@
-DEFAULT_PATH = "C:/Users/oldan/Desktop/RuralDevelopment/progetto-tirocinio/data/processed_italy_data.xlsx"
-RESULTS_PATH = "C:/Users/oldan/Desktop/RuralDevelopment/progetto-tirocinio/results/models_performance.xlsx"
+import os
+
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DATA_DIR = os.path.join(PROJECT_ROOT, "data")
+RESULTS_DIR = os.path.join(PROJECT_ROOT, "results")
+SRC_DIR = os.path.join(PROJECT_ROOT, "src")
+
+PLOTS_DIR = os.path.join(RESULTS_DIR, "plots")
+LOGS_DIR = os.path.join(RESULTS_DIR, "logs")
+ERRORS_DIR = os.path.join(RESULTS_DIR, "errors")
+
+RAW_DATA_FILE = os.path.join(DATA_DIR, "processed_italy_data.xlsx")
+PERFORMANCE_FILE = os.path.join(ERRORS_DIR, "model_performances.xlsx")
+RESIDUALS_FILE = os.path.join(ERRORS_DIR, "residuals_stats.xlsx")
+PARAMS_FILE = os.path.join(LOGS_DIR, "optimized_params.xlsx")
+PREDICTIONS_FILE = os.path.join(LOGS_DIR, "predictions_sequences.csv")
+
+RANDOM_SEED = 42
 
 UNUSABLE = [
     "Rural population living in areas where elevation is below 5 meters (% of total population)",
@@ -44,8 +60,34 @@ SAFE_VAR_NAME = {
 }
 
 COLORS = {
-    'train': 'black',
-    'test': '#1f77b4',
-    'pred': '#d62728',
-    'pred_multi': ['#d62728', '#2ca02c', '#ff7f0e', '#9467bd']
+    'train':        '#7f8c8d',
+    'test_real':    '#000000',
+    
+    'pred_baseline1': '#95a5a6',
+    'pred_baseline2': '#607d8b',
+    'pred_model':     '#d62728',
+    
+    'pred_orig':      '#1f77b4',
+    'pred_step':      '#2ca02c',
+    'pred_jitter':    '#ff7f0e',
 }
+
+LINE_STYLES = {
+    'real':     '-',
+    'baseline': ':',
+    'pred':     '--',
+    'aug':      '-.'
+}
+
+PLOT_CONFIG = {
+    'figure.figsize': (12, 6),
+    'figure.dpi': 300,
+    'axes.grid': True,
+    'grid.alpha': 0.3,
+    'lines.linewidth': 2,
+    'font.size': 12
+}
+
+DEFAULT_BATCH_SIZE = 32
+MAX_EPOCHS = 150
+PATIENCE = 15  # Early Stopping
