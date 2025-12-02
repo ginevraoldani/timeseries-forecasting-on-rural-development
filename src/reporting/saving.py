@@ -69,7 +69,8 @@ def log_experiment_results(indicator, model_type, config_name, metrics, best_par
     if residuals_stats:
         res_data = {
             "Indicator": indicator,
-            "Model": f"{model_type}_{config_name}",
+            "Model": f"{model_type}",
+            "Configuration" : f"{config_name}",
             "Mean_Residual": residuals_stats.get('mean'),
             "Std_Residual": residuals_stats.get('std')
             # Aggiungi qui Ljung-Box p-value se lo hai calcolato
@@ -84,7 +85,7 @@ def log_experiment_results(indicator, model_type, config_name, metrics, best_par
         param_data = {
             "Indicator": indicator,
             "Model": model_type,
-            "Config": config_name,
+            "Configuration": config_name,
             "Best_Params": params_val
         }
         _save_to_excel(PARAMS_FILE, param_data, keys_to_match=["Indicator", "Model", "Configuration"])

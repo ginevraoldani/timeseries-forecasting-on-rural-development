@@ -30,7 +30,7 @@ def plot_results(df, train, test, baseline, prediction, baseline_model, model_na
     ax.plot(test['Year'], test['Value'], '-', color=COLORS['test'], label='Test')
     ax.plot(test['Year'], baseline, '--', color=COLORS['pred_baseline1'], label=f'Baseline ({baseline_model})')
     ax.plot(test['Year'], prediction, '--', color=COLORS['pred_model'], label=f'Predicted ({model_name})')
-    ax.set_title(f'{variable_name} - {model_name} (RMSE: {calc_rmse:.2f}%)')
+    ax.set_title(f'{variable_name} - {model_name} (RMSE: {calc_rmse:.2f}%)', y=0.93)
     ax.set_xlabel('Year')
     ax.set_ylabel('Value')
     test_start = int(test['Year'].min())
@@ -55,7 +55,7 @@ def plot_results(df, train, test, baseline, prediction, baseline_model, model_na
     plt.show()
     plt.close()
 
-def plot_augmented(df_step, df_jitter, x_train_vals, y_train_vals):
+def plot_augmented(variable_name, df_step, df_jitter, x_train_vals, y_train_vals):
     """ plots original time series 
     + step function augmented time series (blue) 
     + linear interpolation with jitter augmented time series (orange)
@@ -66,34 +66,46 @@ def plot_augmented(df_step, df_jitter, x_train_vals, y_train_vals):
         x_train_vals (_type_): _description_
         y_train_vals (_type_): _description_
     """
+    save_folder = os.path.join(PLOTS_DIR, "augmentation")
+    if not os.path.exists(save_folder):
+        os.makedirs(save_folder)
+        print(f"Cartella creata: {save_folder}")
+    
     plt.figure(figsize=(12, 6))
     plt.plot(x_train_vals, y_train_vals, '.', label='Original', color='black', markersize=8)
     plt.plot(df_step['Year'], df_step['Value'], '-', label='Step Function', alpha=0.7)
     plt.plot(df_jitter['Year'], df_jitter['Value'], '--', label='Linear + Jittering', alpha=0.7)
-    plt.title("Comparison between Data Augmentation Techniques")
+    plt.title(f"Data Augmentation - {variable_name}")
     plt.legend()
-    plt.grid(True)
+    plt.grid(True, alpha=0.3)
+    
+    safe_var_name = SAFE_VAR_NAME.get(variable_name, variable_name[:3])
+    filename = f"augment_{safe_var_name}.png"
+    full_path = os.path.join(save_folder, filename)
+    plt.savefig(full_path, dpi=300, bbox_inches='tight')
+    print(f"Grafico salvato in: {full_path}")
     plt.show()
+    plt.close()
 
-def plot_residuals(residuals, model_name, variable_name, save_folder="residuals"):
+def plot_residuals(residuals, model_name, variable_name):
     """
     Prende un array di residui e genera la dashboard diagnostica (Line, Hist, ACF).
     Salva automaticamente usando la logica interna.
     """
-
+    save_folder = os.path.join(PLOTS_DIR, "residuals")
     fig = plt.figure(figsize=(10, 8))
     layout = (2, 2)
     ax1 = plt.subplot2grid(layout, (0, 0), colspan=2)
     ax2 = plt.subplot2grid(layout, (1, 0))
     ax3 = plt.subplot2grid(layout, (1, 1))
     
-    # A. Residui nel tempo
+    # Residui nel tempo
     ax1.plot(residuals, color='purple', linewidth=1.5)
     ax1.axhline(0, color='black', linestyle='--', linewidth=1)
     ax1.set_title(f'Residui: {variable_name} ({model_name})')
     ax1.grid(True, alpha=0.3)
     
-    # B. Istogramma
+    # Istogramma
     ax2.hist(residuals, bins=15, color='gray', edgecolor='black', alpha=0.7, density=True)
     ax2.set_title('Distribuzione')
     
@@ -104,7 +116,7 @@ def plot_residuals(residuals, model_name, variable_name, save_folder="residuals"
     ax2.plot(x, p, 'k', linewidth=2, label='Normale')
     ax2.legend()
     
-    # C. ACF Plot
+    # ACF Plot
     # Gestione errori se i residui sono troppo pochi per l'ACF
     if len(residuals) > 2:
         lags = min(10, len(residuals)//2 - 1)
@@ -112,9 +124,29 @@ def plot_residuals(residuals, model_name, variable_name, save_folder="residuals"
         ax3.set_title('Autocorrelazione (ACF)')
     else:
         ax3.text(0.5, 0.5, "Dati insufficienti per ACF", ha='center')
+        
+    safe_var_name = SAFE_VAR_NAME.get(variable_name, variable_name[:3])
+    filename = f"{str(model_name).lower()}_{safe_var_name}.png"
     
+    if not os.path.isabs(save_folder):
+        save_folder = os.path.abspath(save_folder)
+        
+    if not os.path.exists(save_folder):
+        try:
+            os.makedirs(save_folder)
+            print(f"DEBUG: Cartella creata: {save_folder}")
+        except Exception as e:
+            print(f"ERRORE: Impossibile creare la cartella {save_folder}. Motivo: {e}")
+            return
+
+    full_path = os.path.join(save_folder, filename)
+    try:
+        plt.savefig(full_path, dpi=300, bbox_inches='tight')
+        print(f"Grafico salvato in: {full_path}")
+    except Exception as e:
+        print(f"errore salvataggio: {e}")
     plt.tight_layout()
-    plt.show()
+    plt.close()
     
 def plot_nn_predictions(variable_name, predictions_dict, train_df, val_df, test_df, model_name):
     save_folder = os.path.join(PLOTS_DIR, str(model_name))
@@ -190,18 +222,10 @@ def plot_nn_predictions(variable_name, predictions_dict, train_df, val_df, test_
             return
 
     full_path = os.path.join(save_folder, filename)
-
     try:
         plt.savefig(full_path, dpi=300, bbox_inches='tight')
         print(f"Grafico salvato in: {full_path}")
     except Exception as e:
         print(f"errore salvataggio: {e}")
-    
-    
-    
-
-    # full_path = os.path.join(save_folder, filename)
-    # plt.savefig(full_path, dpi=300, bbox_inches='tight')
-    # print(f"Grafico salvato in: {full_path}")
     plt.show()
     plt.close()
