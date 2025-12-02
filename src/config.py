@@ -60,17 +60,16 @@ SAFE_VAR_NAME = {
 }
 
 COLORS = {
-    'train':        '#7f8c8d',
+    'train':        '#4a5568',
     'test_real':    '#000000',
-    
-    'pred_baseline1': '#95a5a6',
-    'pred_baseline2': '#607d8b',
-    'pred_model':     '#d62728',
-    
-    'pred_orig':      '#1f77b4',
-    'pred_step':      '#2ca02c',
-    'pred_jitter':    '#ff7f0e',
+    'pred_baseline1': '#94a3b8',
+    'pred_baseline2': '#64748b',
+    'pred_model':     '#dc2626',
+    'pred_orig':      '#2563eb',
+    'pred_step':      '#16a34a',
+    'pred_jitter':    '#ea580c'
 }
+
 
 LINE_STYLES = {
     'real':     '-',

@@ -43,7 +43,6 @@ def _save_to_excel(filepath, new_data_dict, keys_to_match):
     else:
         final_df = new_df
         
-    # Ordina per pulizia visiva
     sort_cols = [k for k in keys_to_match if k in final_df.columns]
     if sort_cols:
         final_df = final_df.sort_values(by=sort_cols)
@@ -55,7 +54,7 @@ def log_experiment_results(indicator, model_type, config_name, metrics, best_par
     Salva metriche, parametri e statistiche residui nei rispettivi file Excel.
     """
     
-    # FILE ERRORI: Performance (RMSE, MAE...) -> results/errors/performances.xlsx
+    # FILE ERRORI: Performance (RMSE, MAE...) -> results/errors/model_performances.xlsx
     perf_data = {
         "Indicator": indicator,
         "Model": model_type,
@@ -77,7 +76,7 @@ def log_experiment_results(indicator, model_type, config_name, metrics, best_par
         }
         _save_to_excel(RESIDUALS_FILE, res_data, keys_to_match=["Indicator", "Model", "Configuration"])
     
-    # FILE LOGS: Parametri Ottimizzati -> results/logs/params.xlsx
+    # FILE LOGS: Parametri Ottimizzati -> results/logs/optimized_params.xlsx
     if best_params:
         # Convertiamo in stringa se è un dizionario (per MLP), altrimenti lasciamo così
         params_val = json.dumps(best_params) if isinstance(best_params, dict) else str(best_params)
@@ -89,14 +88,13 @@ def log_experiment_results(indicator, model_type, config_name, metrics, best_par
             "Best_Params": params_val
         }
         _save_to_excel(PARAMS_FILE, param_data, keys_to_match=["Indicator", "Model", "Configuration"])
-    print(f"\nLog salvati per {indicator} (Perf, Params, Res)")
+    print(f"Log salvati per {indicator} (Perf, Params, Res)")
     
-def save_predictions_sequence(indicator, model_type, config_name, years, y_true, y_pred):
+def save_future_forecasts(indicator, model_type, config_name, years, y_true, y_pred):
     """
     Salva la sequenza temporale delle predizioni.
     Va in -> results/logs/predictions.csv
     """
-    # Creiamo un DataFrame "Lungo"
     df = pd.DataFrame({
         'Indicator': indicator,
         'Model': model_type,

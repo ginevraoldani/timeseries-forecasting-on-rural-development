@@ -1,35 +1,15 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import os
+import pandas as pd
 from statsmodels.graphics.tsaplots import plot_acf
 import statsmodels.api as sm
 import scipy.stats as stats
-from src.config import COLORS, SAFE_VAR_NAME, PLOTS_DIR, COLORS, LINE_STYLES, PLOT_CONFIG
+from src.config import COLORS, SAFE_VAR_NAME, PLOTS_DIR, LINE_STYLES, PLOT_CONFIG
 
-# Applica lo stile globale
 plt.rcParams.update(PLOT_CONFIG)
 
-def plot_augmented(df_step, df_jitter, x_train_vals, y_train_vals):
-    """ plots original time series 
-    + step function augmented time series (blue) 
-    + linear interpolation with jitter augmented time series (orange)
-
-    Args:
-        df_step (pd.DataFrame): DataFrame ('Year', 'Value') augmented through step function
-        df_jitter (pd.DataFrame): DataFrame ('Year', 'Value') augmented through linear interpolation with jitter
-        x_train_vals (_type_): _description_
-        y_train_vals (_type_): _description_
-    """
-    plt.figure(figsize=(12, 6))
-    plt.plot(x_train_vals, y_train_vals, '.', label='Original', color='black', markersize=8)
-    plt.plot(df_step['Year'], df_step['Value'], '-', label='Step Function', alpha=0.7)
-    plt.plot(df_jitter['Year'], df_jitter['Value'], '--', label='Linear + Jittering', alpha=0.7)
-    plt.title("Comparison between Data Augmentation Techniques")
-    plt.legend()
-    plt.grid(True)
-    plt.show()
-
-def plot_results(df, train, test, prediction, model_name, variable_name, calc_rmse):
+def plot_results(df, train, test, baseline, prediction, baseline_model, model_name, variable_name, calc_rmse):
     """
     Plotta i risultati e salva l'immagine in una cartella specifica.
     
@@ -40,8 +20,7 @@ def plot_results(df, train, test, prediction, model_name, variable_name, calc_rm
     - model_name: nome del modello (es. 'ARIMA', 'MLP')
     - variable_name: nome della variabile (es. 'GDP_Growth')
     """
-    
-    save_folder = f"results/plots/{model_name}"
+    save_folder = os.path.join(PLOTS_DIR, str(model_name))
     if not os.path.exists(save_folder):
         os.makedirs(save_folder)
         print(f"Cartella creata: {save_folder}")
@@ -49,7 +28,8 @@ def plot_results(df, train, test, prediction, model_name, variable_name, calc_rm
     fig, ax = plt.subplots(figsize=(13, 5))
     ax.plot(train['Year'], train['Value'], '-', color=COLORS['train'], label='Train')
     ax.plot(test['Year'], test['Value'], '-', color=COLORS['test'], label='Test')
-    ax.plot(test['Year'], prediction, '--', color=COLORS['pred'], label=f'Predicted ({model_name})')
+    ax.plot(test['Year'], baseline, '--', color=COLORS['pred_baseline1'], label=f'Baseline ({baseline_model})')
+    ax.plot(test['Year'], prediction, '--', color=COLORS['pred_model'], label=f'Predicted ({model_name})')
     ax.set_title(f'{variable_name} - {model_name} (RMSE: {calc_rmse:.2f}%)')
     ax.set_xlabel('Year')
     ax.set_ylabel('Value')
@@ -75,7 +55,27 @@ def plot_results(df, train, test, prediction, model_name, variable_name, calc_rm
     plt.show()
     plt.close()
 
-def plot_residuals(residuals, model_name, indicator_name, save_folder="residuals"):
+def plot_augmented(df_step, df_jitter, x_train_vals, y_train_vals):
+    """ plots original time series 
+    + step function augmented time series (blue) 
+    + linear interpolation with jitter augmented time series (orange)
+
+    Args:
+        df_step (pd.DataFrame): DataFrame ('Year', 'Value') augmented through step function
+        df_jitter (pd.DataFrame): DataFrame ('Year', 'Value') augmented through linear interpolation with jitter
+        x_train_vals (_type_): _description_
+        y_train_vals (_type_): _description_
+    """
+    plt.figure(figsize=(12, 6))
+    plt.plot(x_train_vals, y_train_vals, '.', label='Original', color='black', markersize=8)
+    plt.plot(df_step['Year'], df_step['Value'], '-', label='Step Function', alpha=0.7)
+    plt.plot(df_jitter['Year'], df_jitter['Value'], '--', label='Linear + Jittering', alpha=0.7)
+    plt.title("Comparison between Data Augmentation Techniques")
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+
+def plot_residuals(residuals, model_name, variable_name, save_folder="residuals"):
     """
     Prende un array di residui e genera la dashboard diagnostica (Line, Hist, ACF).
     Salva automaticamente usando la logica interna.
@@ -90,7 +90,7 @@ def plot_residuals(residuals, model_name, indicator_name, save_folder="residuals
     # A. Residui nel tempo
     ax1.plot(residuals, color='purple', linewidth=1.5)
     ax1.axhline(0, color='black', linestyle='--', linewidth=1)
-    ax1.set_title(f'Residui: {indicator_name} ({model_name})')
+    ax1.set_title(f'Residui: {variable_name} ({model_name})')
     ax1.grid(True, alpha=0.3)
     
     # B. Istogramma
@@ -115,3 +115,93 @@ def plot_residuals(residuals, model_name, indicator_name, save_folder="residuals
     
     plt.tight_layout()
     plt.show()
+    
+def plot_nn_predictions(variable_name, predictions_dict, train_df, val_df, test_df, model_name):
+    save_folder = os.path.join(PLOTS_DIR, str(model_name))
+
+    full_df = np.concatenate([
+        train_df.values,
+        val_df.values,
+        test_df.values
+    ])
+    
+    if variable_name not in predictions_dict:
+        print(f"Skipping plot for {variable_name}: No predictions found.")
+        return
+    data = predictions_dict[variable_name]
+
+    fig, axes = plt.subplots(2, 1, figsize=(14, 12), sharex=True)
+    styles = {
+        'orig':       {'color': COLORS['pred_orig'], 'ls': LINE_STYLES['baseline'], 'label': 'Pred - Orig'},
+        'step_aug':   {'color': COLORS['pred_step'], 'ls': LINE_STYLES['aug'], 'label': 'Pred - Step Aug'},
+        'jitter_aug': {'color': COLORS['pred_jitter'], 'ls': LINE_STYLES['aug'],  'label': 'Pred - Jitter Aug'}
+    }
+    
+    years_full = full_df[:, 0]
+    values_full = full_df[:, 1]
+    
+    for i, sampler in enumerate(['Random', 'TPE']):
+        ax = axes[i]
+        sampler_data = data.get(sampler, {})
+        
+        ax.plot(years_full, values_full, '-', marker='.', color=COLORS['train'], label='Train')
+        
+        if sampler_data:
+            for ds_type, res in sampler_data.items():
+                years_pred = res.get('years', [])
+                y_pred = res.get('y_pred', [])
+
+                rmse = None
+                metrics = res.get('metrics')
+                if metrics and isinstance(metrics, dict) and 'RMSE' in metrics:
+                    rmse = metrics['RMSE']
+
+                style = styles.get(ds_type, {})
+                label_base = style.get('label', ds_type)
+                label_txt = f"{label_base} (RMSE: {rmse:.2f})" if rmse is not None else label_base
+
+                step = max(1, len(full_df) // 10)
+                xticks = years_full[::step]
+                ax.set_xticks(xticks)
+                ax.set_xticklabels([int(x) for x in xticks])
+                ax.tick_params(axis='x', which='both', labelbottom=True)
+                ax.plot(years_pred, y_pred, color=style.get('color', 'C0'),
+                        linestyle=style.get('ls', '-'), linewidth=2, label=label_txt)
+        
+        ax.set_title(f"Hyperparameter Tuning Method: {sampler}", fontsize=14)
+        ax.set_xlabel("Year")
+        ax.set_ylabel("Value")
+        ax.legend(loc='best')
+        ax.grid(True, alpha=0.3)
+        fig.suptitle(f'{variable_name} - {model_name} predictions', fontsize=16, fontweight='bold', y=0.93)
+        
+    safe_var_name = SAFE_VAR_NAME.get(variable_name, variable_name[:3])
+    filename = f"{model_name}_{safe_var_name}.png"
+    
+    if not os.path.isabs(save_folder):
+        save_folder = os.path.abspath(save_folder)
+        
+    if not os.path.exists(save_folder):
+        try:
+            os.makedirs(save_folder)
+            print(f"DEBUG: Cartella creata: {save_folder}")
+        except Exception as e:
+            print(f"ERRORE: Impossibile creare la cartella {save_folder}. Motivo: {e}")
+            return
+
+    full_path = os.path.join(save_folder, filename)
+
+    try:
+        plt.savefig(full_path, dpi=300, bbox_inches='tight')
+        print(f"Grafico salvato in: {full_path}")
+    except Exception as e:
+        print(f"errore salvataggio: {e}")
+    
+    
+    
+
+    # full_path = os.path.join(save_folder, filename)
+    # plt.savefig(full_path, dpi=300, bbox_inches='tight')
+    # print(f"Grafico salvato in: {full_path}")
+    plt.show()
+    plt.close()
