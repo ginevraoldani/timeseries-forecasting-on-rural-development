@@ -21,10 +21,8 @@ def scale_datasets(single_orig_aug_subsets):
         scaled_dict: dictionary containing scaled data
         scalers: scalers used for y (Value)
     """
-    
     scaled_dict = {}
     scalers = {}
-    
     scaler_y = MinMaxScaler(feature_range=(0, 1))
     
     if 'orig_train' not in single_orig_aug_subsets:
@@ -39,9 +37,7 @@ def scale_datasets(single_orig_aug_subsets):
         if df is None or df.empty:
             scaled_dict[key] = None
             continue
-            
         df_scaled = df.copy()
-        
         # Trasformo y
         y_vals = df['Value'].values.reshape(-1, 1)
         df_scaled['Value'] = scaler_y.transform(y_vals).flatten()
@@ -93,3 +89,27 @@ def create_sequences(data, n_steps_in, n_steps_out=1):
         y.append(seq_y)
         
     return np.array(X), np.array(y)
+
+def create_lag_features_table(df, window_size, step=1):
+    """ Creates a DataFrame of lag features 
+    year_target | ts_1 | ts_2 | ts_3 | target       (number of ts according to window_size)
+    1964        | val1 | val2 | val3 | val4
+    1965        | val2 | val3 | val4 | val5
+
+    Args:
+        df (pd.DataFrame): df with columns ('Year', 'Value') - time series of single indicator
+        window_size (int): length of time steps window
+        step (int, optional): number of targets. Defaults to 1.
+
+    Returns:
+        pd.DataFrame: table with sequences created through sliding window
+    """
+    X, y = create_sequences(df['Value'], window_size, step)
+    cols = [f'ts_{i+1}' for i in range(window_size)]
+    df_sequences = pd.DataFrame(X, columns=cols)
+    df_sequences['target'] = y
+    year_targets = df['Year'].iloc[window_size:].values[:len(y)]
+    df_sequences['Year_target'] = year_targets
+    df_sequences.set_index('Year_target', inplace=True)
+    df_sequences.index.name = 'Year'
+    return df_sequences

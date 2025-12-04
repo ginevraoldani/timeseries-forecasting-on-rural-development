@@ -6,7 +6,6 @@ def train_model(model, X_train, y_train, X_val, y_val, batch_size, epochs=50, pa
     Funzione di training GENERICA (riutilizzabile per CNN, LSTM, ecc.).
     Gestisce il fit e l'Early Stopping.
     """
-    
     callbacks_list = [
         EarlyStopping(
             monitor='val_loss', 
@@ -15,7 +14,6 @@ def train_model(model, X_train, y_train, X_val, y_val, batch_size, epochs=50, pa
             verbose=0
         )
     ]
-    
     if extra_callbacks:
         callbacks_list.extend(extra_callbacks)
     

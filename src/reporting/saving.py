@@ -20,7 +20,6 @@ def _save_to_excel(filepath, new_data_dict, keys_to_match):
     if os.path.exists(filepath):
         try:
             existing_df = pd.read_excel(filepath)
-            
             if not existing_df.empty:
                 # Creiamo una maschera per trovare le righe che matchano le chiavi
                 condition = pd.Series([True] * len(existing_df))
@@ -30,11 +29,7 @@ def _save_to_excel(filepath, new_data_dict, keys_to_match):
                         # Filtra dove le colonne sono uguali
                         new_val = new_data_dict[key]
                         condition = condition & (existing_df[key] == new_val)
-                
-                # Rimuoviamo le righe vecchie che matchano (così inseriamo quella nuova pulita)
                 existing_df = existing_df[~condition]
-            
-            # Concatena (Vecchio pulito + Nuovo)
             final_df = pd.concat([existing_df, new_df], ignore_index=True)
             
         except Exception as e:
@@ -50,11 +45,7 @@ def _save_to_excel(filepath, new_data_dict, keys_to_match):
     final_df.to_excel(filepath, index=False)
 
 def log_experiment_results(indicator, model_type, config_name, metrics, best_params=None, residuals_stats=None):
-    """
-    Salva metriche, parametri e statistiche residui nei rispettivi file Excel.
-    """
-    
-    # FILE ERRORI: Performance (RMSE, MAE...) -> results/errors/model_performances.xlsx
+    # FILE ERRORI: performance (RMSE, MAE...) -> results/errors/model_performances.xlsx
     perf_data = {
         "Indicator": indicator,
         "Model": model_type,
@@ -65,7 +56,7 @@ def log_experiment_results(indicator, model_type, config_name, metrics, best_par
     }
     _save_to_excel(PERFORMANCE_FILE, perf_data, keys_to_match=["Indicator", "Model", "Configuration"])
     
-    # FILE ERRORI: Residui Stats -> results/errors/residuals.xlsx
+    # FILE ERRORI: residui stats -> results/errors/residuals.xlsx
     if residuals_stats:
         res_data = {
             "Indicator": indicator,
@@ -77,7 +68,7 @@ def log_experiment_results(indicator, model_type, config_name, metrics, best_par
         }
         _save_to_excel(RESIDUALS_FILE, res_data, keys_to_match=["Indicator", "Model", "Configuration"])
     
-    # FILE LOGS: Parametri Ottimizzati -> results/logs/optimized_params.xlsx
+    # FILE LOGS: parametri ottimizzati -> results/logs/optimized_params.xlsx
     if best_params:
         # Convertiamo in stringa se è un dizionario (per MLP), altrimenti lasciamo così
         params_val = json.dumps(best_params) if isinstance(best_params, dict) else str(best_params)
@@ -89,14 +80,15 @@ def log_experiment_results(indicator, model_type, config_name, metrics, best_par
             "Best_Params": params_val
         }
         _save_to_excel(PARAMS_FILE, param_data, keys_to_match=["Indicator", "Model", "Configuration"])
-    print(f"Log salvati per {indicator} (Perf, Params, Res)")
+    print(f"Logs (Performance, Parameters, Residuals) saved for {indicator}")
     
 def save_future_forecasts(indicator, model_type, config_name, years, y_true, y_pred):
     """
     Salva la sequenza temporale delle predizioni.
     Va in -> results/logs/predictions.csv
     """
-    df = pd.DataFrame({
+    # FILE LOGS: predizioni future -> results/logs/future_predictions.xlsx
+    pred_data = pd.DataFrame({
         'Indicator': indicator,
         'Model': model_type,
         'Config': config_name,
@@ -104,10 +96,5 @@ def save_future_forecasts(indicator, model_type, config_name, years, y_true, y_p
         'y_true': y_true,
         'y_pred': y_pred
     })
-    
-    os.makedirs(os.path.dirname(PREDICTIONS_FILE), exist_ok=True)
-    
-    # Append mode su CSV
-    file_exists = os.path.exists(PREDICTIONS_FILE)
-    df.to_csv(PREDICTIONS_FILE, mode='a', header=not file_exists, index=False)
-    print("Predizioni accodate al CSV.")
+    _save_to_excel(PREDICTIONS_FILE, pred_data, keys_to_match=["Indicator", "Model", "Configuration"])
+    print(f"Future predictions saved for {indicator} in {PREDICTIONS_FILE}")

@@ -66,7 +66,7 @@ def plot_augmented(variable_name, df_step, df_jitter, x_train_vals, y_train_vals
         x_train_vals (_type_): _description_
         y_train_vals (_type_): _description_
     """
-    save_folder = os.path.join(PLOTS_DIR, "augmentation")
+    save_folder = os.path.join(PLOTS_DIR, "AUGMENTATION")
     if not os.path.exists(save_folder):
         os.makedirs(save_folder)
         print(f"Cartella creata: {save_folder}")
@@ -80,7 +80,7 @@ def plot_augmented(variable_name, df_step, df_jitter, x_train_vals, y_train_vals
     plt.grid(True, alpha=0.3)
     
     safe_var_name = SAFE_VAR_NAME.get(variable_name, variable_name[:3])
-    filename = f"augment_{safe_var_name}.png"
+    filename = f"AUG_{safe_var_name}.png"
     full_path = os.path.join(save_folder, filename)
     plt.savefig(full_path, dpi=300, bbox_inches='tight')
     print(f"Grafico salvato in: {full_path}")
@@ -92,7 +92,7 @@ def plot_residuals(residuals, model_name, variable_name):
     Prende un array di residui e genera la dashboard diagnostica (Line, Hist, ACF).
     Salva automaticamente usando la logica interna.
     """
-    save_folder = os.path.join(PLOTS_DIR, "residuals")
+    save_folder = os.path.join(PLOTS_DIR, "RESIDUALS")
     fig = plt.figure(figsize=(10, 8))
     layout = (2, 2)
     ax1 = plt.subplot2grid(layout, (0, 0), colspan=2)
@@ -102,18 +102,18 @@ def plot_residuals(residuals, model_name, variable_name):
     # Residui nel tempo
     ax1.plot(residuals, color='purple', linewidth=1.5)
     ax1.axhline(0, color='black', linestyle='--', linewidth=1)
-    ax1.set_title(f'Residui: {variable_name} ({model_name})')
+    ax1.set_title(f'Residuals: {variable_name} ({model_name})')
     ax1.grid(True, alpha=0.3)
     
     # Istogramma
     ax2.hist(residuals, bins=15, color='gray', edgecolor='black', alpha=0.7, density=True)
-    ax2.set_title('Distribuzione')
+    ax2.set_title('Distribution')
     
     # Curva normale teorica
     xmin, xmax = ax2.get_xlim()
     x = np.linspace(xmin, xmax, 100)
     p = stats.norm.pdf(x, np.mean(residuals), np.std(residuals))
-    ax2.plot(x, p, 'k', linewidth=2, label='Normale')
+    ax2.plot(x, p, 'k', linewidth=2, label='Normal')
     ax2.legend()
     
     # ACF Plot
@@ -121,9 +121,9 @@ def plot_residuals(residuals, model_name, variable_name):
     if len(residuals) > 2:
         lags = min(10, len(residuals)//2 - 1)
         sm.graphics.tsa.plot_acf(residuals, ax=ax3, lags=lags, zero=False)
-        ax3.set_title('Autocorrelazione (ACF)')
+        ax3.set_title('Autocorrelation (ACF)')
     else:
-        ax3.text(0.5, 0.5, "Dati insufficienti per ACF", ha='center')
+        ax3.text(0.5, 0.5, "Insufficient data for ACF", ha='center')
         
     safe_var_name = SAFE_VAR_NAME.get(variable_name, variable_name[:3])
     filename = f"{str(model_name).lower()}_{safe_var_name}.png"
