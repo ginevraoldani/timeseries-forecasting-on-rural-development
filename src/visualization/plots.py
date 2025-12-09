@@ -9,6 +9,13 @@ from src.config import COLORS, SAFE_VAR_NAME, PLOTS_DIR, LINE_STYLES, PLOT_CONFI
 
 plt.rcParams.update(PLOT_CONFIG)
 
+def set_path(model_name):
+    save_folder = os.path.join(PLOTS_DIR, str(model_name))
+    if not os.path.exists(save_folder):
+        os.makedirs(save_folder)
+        print(f"Cartella creata: {save_folder}")
+    return save_folder
+
 def plot_results(df, train, test, baseline, prediction, baseline_model, model_name, variable_name, calc_rmse):
     """
     Plotta i risultati e salva l'immagine in una cartella specifica.
@@ -20,11 +27,7 @@ def plot_results(df, train, test, baseline, prediction, baseline_model, model_na
     - model_name: nome del modello (es. 'ARIMA', 'MLP')
     - variable_name: nome della variabile (es. 'GDP_Growth')
     """
-    save_folder = os.path.join(PLOTS_DIR, str(model_name))
-    if not os.path.exists(save_folder):
-        os.makedirs(save_folder)
-        print(f"Cartella creata: {save_folder}")
-        
+    save_folder = set_path(model_name)
     fig, ax = plt.subplots(figsize=(13, 5))
     ax.plot(train['Year'], train['Value'], '-', color=COLORS['train'], label='Train')
     ax.plot(test['Year'], test['Value'], '-', color=COLORS['test'], label='Test')
@@ -66,11 +69,7 @@ def plot_augmented(variable_name, df_step, df_jitter, x_train_vals, y_train_vals
         x_train_vals (_type_): _description_
         y_train_vals (_type_): _description_
     """
-    save_folder = os.path.join(PLOTS_DIR, "AUGMENTATION")
-    if not os.path.exists(save_folder):
-        os.makedirs(save_folder)
-        print(f"Cartella creata: {save_folder}")
-    
+    save_folder = set_path("AUGMENTATION")
     plt.figure(figsize=(12, 6))
     plt.plot(x_train_vals, y_train_vals, '.', label='Original', color='black', markersize=8)
     plt.plot(df_step['Year'], df_step['Value'], '-', label='Step Function', alpha=0.7)
@@ -92,7 +91,7 @@ def plot_residuals(residuals, model_name, variable_name):
     Prende un array di residui e genera la dashboard diagnostica (Line, Hist, ACF).
     Salva automaticamente usando la logica interna.
     """
-    save_folder = os.path.join(PLOTS_DIR, "RESIDUALS")
+    save_folder = set_path("RESIDUALS")
     fig = plt.figure(figsize=(10, 8))
     layout = (2, 2)
     ax1 = plt.subplot2grid(layout, (0, 0), colspan=2)
@@ -147,8 +146,72 @@ def plot_residuals(residuals, model_name, variable_name):
         print(f"errore salvataggio: {e}")
     plt.tight_layout()
     plt.close()
+
+def plot_shallow_nn_preds(variable_name, results_dict, orig_aug_subsets, model_name):
+    """
+    Plotta le predizioni della Shallow CNN confrontando le diverse strategie di augmentation.
+    Include anche il grafico della Loss per diagnosticare il training.
+    """
+    save_folder = set_path(model_name)
     
-def plot_nn_predictions(variable_name, predictions_dict, train_df, val_df, test_df, model_name):
+    full_years = orig_aug_subsets[variable_name]['full_orig']['Year'].values
+    full_values = orig_aug_subsets[variable_name]['full_orig']['Value'].values
+    
+    test_years = orig_aug_subsets[variable_name]['orig_test']['Year'].values[3:]
+    # test_real = orig_aug_subsets['orig_test']['Value'].values
+
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(14, 12))
+    ax1.plot(full_years, full_values, color=COLORS['train'], linestyle=LINE_STYLES['real'], label='Real', marker='.')
+
+    styles = {
+        'orig':   {'color': COLORS['pred_orig'],  'ls': LINE_STYLES['real'],  'label': 'Original'},
+        'step':   {'color': COLORS['pred_step'], 'ls': LINE_STYLES['aug'], 'label': 'Step Aug'},
+        'jitter': {'color': COLORS['pred_jitter'],   'ls': LINE_STYLES['aug'], 'label': 'Jitter Aug'}
+    }
+
+    if variable_name in results_dict:
+        indicator_res = results_dict[variable_name]
+        
+        for aug_type, res_data in indicator_res.items():
+            if aug_type not in styles: continue
+            
+            y_pred = res_data['pred_real'].flatten() # Appiattiamo (N,1) -> (N,)
+            loss_history = res_data['history']
+
+            ax1.plot(test_years, y_pred, 
+                    color=styles[aug_type]['color'], 
+                    linestyle=styles[aug_type]['ls'], 
+                    linewidth=2, 
+                    label=styles[aug_type]['label'])
+            
+            ax2.plot(loss_history, 
+                    color=styles[aug_type]['color'], 
+                    linestyle=styles[aug_type]['ls'], 
+                    label=f"{styles[aug_type]['label']} (Epoche: {len(loss_history)})")
+
+    ax1.set_title(f"Forecast Comparison: {variable_name}", fontsize=14, fontweight='bold')
+    ax1.set_ylabel("Value")
+    ax1.legend(loc='best')
+    ax1.grid(True, alpha=0.3)
+    
+    ax2.set_title("Training Loss Convergence", fontsize=12)
+    ax2.set_xlabel("Epochs")
+    ax2.set_ylabel("Loss (MSE)")
+    ax2.set_yscale('log') # Scala logaritmica spesso aiuta a vedere meglio la convergenza
+    ax2.legend(loc='best')
+    ax2.grid(True, alpha=0.3)
+
+    fig.suptitle(f'CNN Analysis: {variable_name}', fontsize=16, y=0.95)
+
+    safe_var_name = SAFE_VAR_NAME.get(variable_name, variable_name[:3])
+    filename = f"shallowCNN_{safe_var_name}.png"
+    full_path = os.path.join(save_folder, filename)
+    plt.savefig(full_path, dpi=300, bbox_inches='tight')
+    print(f"Grafico salvato in: {full_path}")
+    plt.show()
+    plt.close()
+
+def plot_nn_preds(variable_name, predictions_dict, train_df, val_df, test_df, model_name):
     save_folder = os.path.join(PLOTS_DIR, str(model_name))
 
     full_df = np.concatenate([
