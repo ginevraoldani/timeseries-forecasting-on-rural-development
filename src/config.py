@@ -1,3 +1,6 @@
+import tensorflow as tf
+import numpy as np
+import random
 import os
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -9,13 +12,13 @@ PLOTS_DIR = os.path.join(RESULTS_DIR, "plots")
 LOGS_DIR = os.path.join(RESULTS_DIR, "logs")
 ERRORS_DIR = os.path.join(RESULTS_DIR, "errors")
 
+MODELS_DIR = os.path.join(RESULTS_DIR, "saved_models")
+
 RAW_DATA_FILE = os.path.join(DATA_DIR, "processed_italy_data.xlsx")
 PERFORMANCE_FILE = os.path.join(ERRORS_DIR, "model_performances.xlsx")
 RESIDUALS_FILE = os.path.join(ERRORS_DIR, "residuals_stats.xlsx")
 PARAMS_FILE = os.path.join(LOGS_DIR, "optimized_params.xlsx")
 PREDICTIONS_FILE = os.path.join(LOGS_DIR, "predictions_sequences.csv")
-
-RANDOM_SEED = 42
 
 UNUSABLE = [
     "Rural population living in areas where elevation is below 5 meters (% of total population)",
@@ -59,6 +62,28 @@ SAFE_VAR_NAME = {
     "Agricultural raw materials imports (% of merchandise imports)" : "imports_percent"    
 }
 
+def get_complete_path(base_dir, model_name, variable_name, ext=".png"):
+    """
+    Genera il percorso completo per il salvataggio e crea la cartella se necessario.
+    
+    Args:
+        base_dir (str): La cartella radice (es. PLOTS_DIR o MODELS_DIR).
+        model_name (str): Il nome del modello (es. 'CNN_Shallow').
+        variable_name (str): Il nome dell'indicatore
+        ext (str): L'estensione del file (default '.png', usa '.keras' per modelli).
+        
+    Returns:
+        str: Il percorso assoluto completo del file.
+    """
+    save_folder = os.path.join(base_dir, str(model_name))
+    os.makedirs(save_folder, exist_ok=True) 
+    
+    safe_var = SAFE_VAR_NAME.get(variable_name, variable_name[:3])
+    safe_var = "".join([c if c.isalnum() else "_" for c in safe_var])[:50]
+    
+    filename = f"{str(model_name)}_{safe_var}{ext}"
+    return os.path.join(save_folder, filename)
+
 COLORS = {
     'train':        '#4a5568',
     'test_real':    '#000000',
@@ -90,3 +115,13 @@ PLOT_CONFIG = {
 DEFAULT_BATCH_SIZE = 32
 MAX_EPOCHS = 150
 PATIENCE = 15  # Early Stopping
+RANDOM_SEED = 42
+
+def set_seeds(seed=RANDOM_SEED):
+    os.environ['PYTHONHASHSEED'] = str(seed)
+    random.seed(seed)
+    np.random.seed(seed)
+    tf.random.set_seed(seed)
+    # Per operazioni deterministiche su GPU (rallenta un po' ma è preciso)
+    os.environ['TF_DETERMINISTIC_OPS'] = '1'
+

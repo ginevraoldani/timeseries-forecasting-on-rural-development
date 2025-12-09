@@ -1,4 +1,6 @@
 from .plots import (
+    set_path,
+    set_filename,
     plot_augmented,
     plot_results,
     plot_residuals,
