@@ -253,8 +253,12 @@ def plot_nn_preds(variable_name, predictions_dict, train_df, val_df, test_df, mo
                 ax.set_xticks(xticks)
                 ax.set_xticklabels([int(x) for x in xticks])
                 ax.tick_params(axis='x', which='both', labelbottom=True)
-                ax.plot(years_pred, y_pred, color=style.get('color', 'C0'),
-                        linestyle=style.get('ls', '-'), linewidth=2, label=label_txt)
+                ax.plot(years_pred,
+                        y_pred,
+                        color=style.get('color', 'C0'),
+                        linestyle=style.get('ls', '-'),
+                        linewidth=2,
+                        label=label_txt)
         
         ax.set_title(f"Hyperparameter Tuning Method: {sampler}", fontsize=14)
         ax.set_xlabel("Year")
