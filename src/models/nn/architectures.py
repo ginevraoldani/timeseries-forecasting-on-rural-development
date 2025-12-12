@@ -1,7 +1,6 @@
-from tensorflow.keras.models import Sequential                      # type: ignore
-from tensorflow.keras.layers import Input, Dense, Dropout           # type: ignore
-from tensorflow.keras.layers import Conv1D, MaxPooling1D, Flatten   # type: ignore
-from tensorflow.keras.optimizers import Adam                        # type: ignore
+from tensorflow.keras.models import Sequential                                              # type: ignore
+from tensorflow.keras.layers import Conv1D, MaxPooling1D, Flatten, Input, Dense, Dropout    # type: ignore
+from tensorflow.keras.optimizers import Adam                                                # type: ignore
 
 def build_mlp_model(params, input_dim):
     model = Sequential()
@@ -31,48 +30,50 @@ def build_mlp_model(params, input_dim):
     
     return model
 
-def build_cnn_model(params, input_shape):
-    """
-    Costruisce un modello CNN 1D dinamico basato sui parametri passati.
-    Specifico per CNN 1D time series.
-    
+def build_cnn_model(params):
+    """ Builds a dynamic 1D CNN, based on params in input.
+
     Args:
         params (dict): dict containing architectural params
-        input_shape (tuple): (window_size, n_features) es. (3, 1)
-    
+
     Returns:
         model: keras compiled model
     """
     model = Sequential()
-    model.add(Input(shape=input_shape))
+    model.add(Input(shape=params['input_shape']))
+    model.add(Conv1D(filters=params['filters'], 
+                    kernel_size=params['kernel_size'], 
+                    activation='relu'))
     
-    # Layer convoluzionali
-    for i in range(params['n_conv_layers']):
-        model.add(Conv1D(
-            filters=params['n_filters'],
-            kernel_size=params['kernel_size'],
-            activation=params['activation'],
-            padding='same'  # mantiene dimensione temporale
+    if params.get('pool_size'):
+        model.add(MaxPooling1D(pool_size=params['pool_size']))
+    
+    model.add(Dropout(params['dropout']))
+
+    for _ in range(params['n_conv_layers'] - 1):
+        model.add(Conv1D(filters=params['filters'] * 2, # Spesso si raddoppiano i filtri scendendo
+                        kernel_size=params['kernel_size'], 
+                        activation=params['activation'],
+                        padding = 'same'
         ))
         if params.get('use_pooling', True):  # opzionale
             model.add(MaxPooling1D(pool_size=params.get('pool_size', 2)))
-    
-    # Flatten e Dense layers
+        model.add(Dropout(params['dropout']))
+
     model.add(Flatten())
     
-    if params.get('dense_units', 0) > 0:  # layer Dense opzionale
+    if params.get('dense_units', 0) > 0:
         model.add(Dense(params['dense_units'], activation=params['activation']))
     
     if params.get('dropout', 0) > 0:
         model.add(Dropout(params['dropout']))
     
-    # Output layer
-    model.add(Dense(1))  # forecasting univariato
+    # Output Layer (Regressione: 1 unità lineare) -> forecasting univariato
+    model.add(Dense(1, activation='linear'))
     
-    model.compile(
-        optimizer=Adam(learning_rate=params['learning_rate']),
-        loss='mse',
-        metrics=['mae']
+    model.compile(optimizer = Adam(learning_rate=params['learning_rate']),
+                loss='mse',
+                metrics=['mae']
     )
     
     return model
