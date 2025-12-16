@@ -31,49 +31,64 @@ def build_mlp_model(params, input_dim):
     return model
 
 def build_cnn_model(params):
-    """ Builds a dynamic 1D CNN, based on params in input.
-
-    Args:
-        params (dict): dict containing architectural params
-
-    Returns:
-        model: keras compiled model
-    """
+    """ Builds a dynamic 1D CNN, safe for short time series. """ 
+    
     model = Sequential()
-    model.add(Input(shape=params['input_shape']))
+    
     model.add(Conv1D(filters=params['filters'], 
                     kernel_size=params['kernel_size'], 
-                    activation='relu'))
+                    activation='relu',
+                    padding='same',
+                    input_shape=params['input_shape']))
     
-    if params.get('pool_size'):
-        model.add(MaxPooling1D(pool_size=params['pool_size']))
+    current_dim = params['input_shape'][0]
+    pool_size = params.get('pool_size', 2)
+
+    # Pooling sicuro: lo facciamo solo se c'è spazio
+    if current_dim >= pool_size:
+        model.add(MaxPooling1D(pool_size=pool_size))
+        current_dim = current_dim // pool_size
     
     model.add(Dropout(params['dropout']))
-
+    
+    # Questo ciclo aggiunge layer SOLO se la dimensione dei dati lo permette
     for _ in range(params['n_conv_layers'] - 1):
-        model.add(Conv1D(filters=params['filters'] * 2, # Spesso si raddoppiano i filtri scendendo
-                        kernel_size=params['kernel_size'], 
-                        activation=params['activation'],
-                        padding = 'same'
-        ))
-        if params.get('use_pooling', True):  # opzionale
-            model.add(MaxPooling1D(pool_size=params.get('pool_size', 2)))
-        model.add(Dropout(params['dropout']))
+        
+        # Con padding='same', la Conv1D non riduce la dimensione, quindi è sempre sicura
+        # se il kernel non supera la dimensione (ma padding same gestisce anche quello in TF recenti).
+        # Tuttavia, per logica, evitiamo di aggiungere layer su feature map minuscole (es. 1 o 2 steps).
+        if current_dim >= params['kernel_size']:
+            
+            model.add(Conv1D(filters=params['filters'] * 2, # Raddoppio filtri
+                            kernel_size=params['kernel_size'], 
+                            padding='same', 
+                            activation='relu'))
+            
+            # Check per il Pooling nel layer successivo
+            if current_dim >= pool_size:
+                model.add(MaxPooling1D(pool_size=pool_size))
+                current_dim = current_dim // pool_size
+            
+            model.add(Dropout(params['dropout']))
+        else:
+            # STOP: La rete è diventata troppo profonda per questi dati (input troppo corto).
+            # Usciamo dal ciclo senza aggiungere altri layer convoluzionali.
+            break
 
+    # HEAD (Classificatore/Regressore)
     model.add(Flatten())
     
     if params.get('dense_units', 0) > 0:
-        model.add(Dense(params['dense_units'], activation=params['activation']))
+        model.add(Dense(params['dense_units'], activation='relu'))
     
     if params.get('dropout', 0) > 0:
         model.add(Dropout(params['dropout']))
     
-    # Output Layer (Regressione: 1 unità lineare) -> forecasting univariato
+    # Output Layer (Regressione univara)
     model.add(Dense(1, activation='linear'))
     
-    model.compile(optimizer = Adam(learning_rate=params['learning_rate']),
+    model.compile(optimizer=Adam(learning_rate=params['learning_rate']),
                 loss='mse',
-                metrics=['mae']
-    )
+                metrics=['mae'])
     
     return model

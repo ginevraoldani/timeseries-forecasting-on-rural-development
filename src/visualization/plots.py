@@ -253,6 +253,9 @@ def plot_nn_preds(variable_name, predictions_dict, train_df, val_df, test_df, mo
                 ax.set_xticks(xticks)
                 ax.set_xticklabels([int(x) for x in xticks])
                 ax.tick_params(axis='x', which='both', labelbottom=True)
+                test_start = int(years_pred.min())
+                test_end = int(years_pred.max())
+                ax.axvspan(test_start, test_end, color='#808080', alpha=0.1)
                 ax.plot(years_pred,
                         y_pred,
                         color=style.get('color', 'C0'),
@@ -265,6 +268,7 @@ def plot_nn_preds(variable_name, predictions_dict, train_df, val_df, test_df, mo
         ax.set_ylabel("Value")
         ax.legend(loc='best')
         ax.grid(True, alpha=0.3)
+        
         fig.suptitle(f'{variable_name} - {model_name} predictions', fontsize=16, fontweight='bold', y=0.93)
         
     safe_var_name = SAFE_VAR_NAME.get(variable_name, variable_name[:3])
@@ -289,3 +293,80 @@ def plot_nn_preds(variable_name, predictions_dict, train_df, val_df, test_df, mo
         print(f"errore salvataggio: {e}")
     plt.show()
     plt.close()
+
+def plot_future_forecasts(variable_name, predictions_dict, train_df, val_df, test_df, model_name):
+    save_folder = os.path.join(PLOTS_DIR, str(model_name))
+    if not os.path.exists(save_folder):
+        os.makedirs(save_folder)
+
+    full_df = pd.concat([train_df, val_df, test_df]).sort_values('Year')
+    years_full = full_df['Year'].values
+    values_full = full_df['Value'].values
+    
+    last_year_hist = years_full[-1]
+    last_val_hist = values_full[-1]
+
+    if variable_name not in predictions_dict:
+        print(f"Skipping plot for {variable_name}: No predictions found.")
+        return
+    data = predictions_dict[variable_name]
+
+    fig, axes = plt.subplots(2, 1, figsize=(14, 12), sharex=True)
+    
+    styles = {
+        'orig':       {'color': COLORS['pred_orig'], 'ls': LINE_STYLES['baseline'], 'label': 'Pred - Orig'},
+        'step_aug':   {'color': COLORS['pred_step'], 'ls': LINE_STYLES['aug'], 'label': 'Pred - Step Aug'},
+        'jitter_aug': {'color': COLORS['pred_jitter'], 'ls': LINE_STYLES['aug'],  'label': 'Pred - Jitter Aug'}
+    }
+    
+    for i, sampler in enumerate(['Random', 'TPE']):
+        ax = axes[i]
+        sampler_data = data.get(sampler, {})
+        
+        ax.plot(years_full, values_full, '-', marker='.', color=COLORS['train'], label='Train')
+
+        if sampler_data:
+            for ds_type, res in sampler_data.items():
+                years_pred = res.get('years', [])
+                y_pred = res.get('y_pred', [])
+                
+                rmse = None
+                metrics = res.get('metrics')
+                if metrics and isinstance(metrics, dict) and 'RMSE' in metrics:
+                    rmse = metrics['RMSE']
+
+                style = styles.get(ds_type, {})
+                label_base = style.get('label', ds_type)
+                label_txt = f"{label_base} (RMSE: {rmse:.2f})" if rmse is not None else label_base
+
+                plot_years = np.concatenate([[last_year_hist], years_pred])
+                plot_values = np.concatenate([[last_val_hist], y_pred])
+
+                ax.plot(plot_years, plot_values, 
+                        color=style.get('color', 'red'), 
+                        linestyle=style.get('ls', '--'), 
+                        linewidth=2, 
+                        label=label_txt)
+        
+        if sampler_data:
+            max_year = max([max(v['years']) for v in sampler_data.values()])
+            ax.axvspan(last_year_hist, max_year, color='#808080', alpha=0.2)
+
+        ax.set_title(f"Optimization Method: {sampler}", fontsize=14)
+        ax.set_xlabel("Year")
+        ax.set_ylabel("Value")
+        ax.legend(loc='best')
+        ax.grid(True, alpha=0.3)
+
+    axes[1].set_xlabel("Year")
+    fig.suptitle(f'{variable_name} - Future Forecast (2025-2030)', fontsize=16, fontweight='bold')
+    
+    safe_var_name = SAFE_VAR_NAME.get(variable_name, variable_name[:10].replace(" ", "_"))
+    filename = f"FUTURE_{model_name}_{safe_var_name}.png"
+    full_path = os.path.join(save_folder, filename)
+    
+    plt.tight_layout()
+    plt.savefig(full_path, dpi=300, bbox_inches='tight')
+    plt.show()
+    plt.close()
+    print(f"Grafico salvato: {full_path}")
