@@ -1,6 +1,7 @@
 from .plots import (
     set_path,
     set_filename,
+    plot_exploratory_time_series,
     plot_augmented,
     plot_results,
     plot_residuals,

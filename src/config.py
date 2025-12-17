@@ -118,10 +118,28 @@ PATIENCE = 15  # Early Stopping
 RANDOM_SEED = 42
 
 def set_seeds(seed=RANDOM_SEED):
+    """ Sets random seeds for Python, NumPy, and TensorFlow to ensure
+    reproducible results across execution runs.
+
+    This function also attempts to enable deterministic operations in TensorFlow,
+    which is crucial for reproducibility on GPUs, though it might slightly
+    impact performance.
+
+    Args:
+        seed (int, optional): The seed value to be used. Defaults to RANDOM_SEED.
+    """
     os.environ['PYTHONHASHSEED'] = str(seed)
     random.seed(seed)
     np.random.seed(seed)
     tf.random.set_seed(seed)
-    # Per operazioni deterministiche su GPU (rallenta un po' ma è preciso)
-    os.environ['TF_DETERMINISTIC_OPS'] = '1'
-
+    
+    # Determinismo operazioni GPU/CPU (TensorFlow >= 2.9)
+    # Questa funzione rende deterministici anche i layer convoluzionali
+    # che solitamente introducono rumore stocastico su GPU.
+    try:
+        tf.config.experimental.enable_op_determinism()
+    except AttributeError:
+        # Fallback per versioni vecchie di TF
+        os.environ['TF_DETERMINISTIC_OPS'] = '1'
+        
+    print(f"Random seeds set to {seed}. Deterministic operations enabled.")

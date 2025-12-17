@@ -21,6 +21,74 @@ def set_filename(variable_name, model_name):
     filename = f"{str(model_name).lower()}_{safe_var_name}.png"
     return filename
 
+def plot_exploratory_time_series(df, x_col='Year', columns=None, save_plots=False, folder_name="01_EDA_Raw_Data"):
+    """
+    Plots time series data for exploratory analysis using standardized project styles.
+    
+    This function adheres to the configurations defined in config.py (COLORS, LINE_STYLES)
+    to ensure visual consistency across the project.
+
+    Args:
+        df (pd.DataFrame): Input DataFrame.
+        x_col (str): Column name for X-axis. Defaults to 'Year'. If missing, index is used.
+        columns (list, optional): List of columns to plot. If None, selects all numeric cols.
+        save_plots (bool): Whether to save the plots to disk.
+        folder_name (str): Sub-folder name within PLOTS_DIR for saving.
+    """
+    if x_col in df.columns:
+        x_data = df[x_col]
+        x_label = x_col
+    else:
+        x_data = df.index
+        x_label = "Time (Index)"
+
+    if columns is None:
+        numeric_cols = df.select_dtypes(include=['number']).columns.tolist()
+        columns = [c for c in numeric_cols if c != x_col]
+
+    save_folder = None
+    if save_plots:
+        save_folder = set_path(folder_name, PLOTS_DIR)
+
+    print(f"Plotting {len(columns)} variables")
+
+    for col in columns:
+        series = df[col].dropna()
+        if series.empty:
+            print(f"Skipping empty: {col}")
+            continue
+        x_plot = x_data.loc[series.index]
+
+        plt.figure()
+        plt.plot(
+            x_plot, 
+            series, 
+            color=COLORS.get('train', 'blue'),
+            linestyle=LINE_STYLES.get('real', '-'),
+            marker='o', 
+            markersize=4,
+            label=col
+        )
+
+        plt.title(f"EDA: {col}", fontsize=14, fontweight='bold')
+        plt.xlabel(x_label)
+        plt.ylabel("Value")
+        plt.grid(True, linestyle="--", alpha=0.5)
+        plt.legend(loc='best')
+
+        if save_plots and save_folder:
+            filename = set_filename(col, "EDA")
+            full_path = os.path.join(save_folder, filename)
+            try:
+                plt.savefig(full_path, dpi=300, bbox_inches='tight')
+                print(f"Saved: {filename}")
+            except Exception as e:
+                print(f"Error saving {col}: {e}")
+
+        plt.tight_layout()
+        plt.show()
+        plt.close()
+
 def plot_results(df, train, test, baseline, prediction, baseline_model, model_name, variable_name, calc_rmse):
     """
     Plotta i risultati e salva l'immagine in una cartella specifica.
