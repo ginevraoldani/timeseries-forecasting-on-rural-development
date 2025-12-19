@@ -3,23 +3,26 @@ import numpy as np
 import random
 import os
 
+# path directory del progetto
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(PROJECT_ROOT, "data")
 RESULTS_DIR = os.path.join(PROJECT_ROOT, "results")
 SRC_DIR = os.path.join(PROJECT_ROOT, "src")
 
+# path directory specifiche di salvataggio risultati
 PLOTS_DIR = os.path.join(RESULTS_DIR, "plots")
 LOGS_DIR = os.path.join(RESULTS_DIR, "logs")
 ERRORS_DIR = os.path.join(RESULTS_DIR, "errors")
-
 MODELS_DIR = os.path.join(RESULTS_DIR, "saved_models")
 
+# path file specifici da aggiornare durante esecuzione modelli
 RAW_DATA_FILE = os.path.join(DATA_DIR, "processed_italy_data.xlsx")
-PERFORMANCE_FILE = os.path.join(ERRORS_DIR, "model_performances.xlsx")
-RESIDUALS_FILE = os.path.join(ERRORS_DIR, "residuals_stats.xlsx")
-PARAMS_FILE = os.path.join(LOGS_DIR, "optimized_params.xlsx")
-PREDICTIONS_FILE = os.path.join(LOGS_DIR, "predictions_sequences.csv")
+PERFORMANCE_FILE = os.path.join(ERRORS_DIR, "performance_metrics.xlsx")
+PARAMS_FILE = os.path.join(LOGS_DIR, "model_params.xlsx")
+RESIDUALS_FILE = os.path.join(ERRORS_DIR, "residuals_diagnostics.xlsx")
+PREDICTIONS_FILE = os.path.join(LOGS_DIR, "future_forecasts.csv")
 
+# nomi indicatori inusabili
 UNUSABLE = [
     "Rural population living in areas where elevation is below 5 meters (% of total population)",
     "Access to electricity, rural (% of rural population)",
@@ -32,7 +35,8 @@ UNUSABLE = [
     "Rural land area where elevation is below 5 meters (sq. km)"
 ]
 
-SAFE_VAR_NAME = {
+# mappa di rinomina indicator name -> long : short 
+SAFE_VAR_NAMES = {
     "Rural population (% of total population)" : "population_percent",
     "Rural population growth (annual %)" : "population_growth",
     "Rural population" : "population_abs",
@@ -62,6 +66,9 @@ SAFE_VAR_NAME = {
     "Agricultural raw materials imports (% of merchandise imports)" : "imports_percent"    
 }
 
+# mappa di rinomina inversa indicator name -> short : long  (per plotting)
+REVERSE_VAR_NAMES = {v: k for k, v in SAFE_VAR_NAMES.items()}
+
 def get_complete_path(base_dir, model_name, variable_name, ext=".png"):
     """
     Genera il percorso completo per il salvataggio e crea la cartella se necessario.
@@ -78,7 +85,7 @@ def get_complete_path(base_dir, model_name, variable_name, ext=".png"):
     save_folder = os.path.join(base_dir, str(model_name))
     os.makedirs(save_folder, exist_ok=True) 
     
-    safe_var = SAFE_VAR_NAME.get(variable_name, variable_name[:3])
+    safe_var = SAFE_VAR_NAMES.get(variable_name, variable_name[:3])
     safe_var = "".join([c if c.isalnum() else "_" for c in safe_var])[:50]
     
     filename = f"{str(model_name)}_{safe_var}{ext}"

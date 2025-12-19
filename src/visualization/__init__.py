@@ -3,7 +3,7 @@ from .plots import (
     set_filename,
     plot_exploratory_time_series,
     plot_augmented,
-    plot_results,
+    plot_forecast,
     plot_residuals,
     plot_shallow_nn_preds,
     plot_nn_preds,

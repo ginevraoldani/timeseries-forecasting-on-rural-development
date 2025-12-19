@@ -1,34 +1,62 @@
 import numpy as np
-from sklearn.metrics import mean_squared_error, mean_absolute_error
+from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 
 def compute_errors(y_true, y_pred):
     """
-    Calcola RMSE, MAE e un MAPE 'sicuro' (gestisce divisione per zero).
-    y_true: Array dei valori reali
-    y_pred: Array dei valori predetti
+    Calculates error metrics to evaluate models' performance.
+    
+    Automatically manages:
+    - list/array input ( -> flattens).
+    - NaN deletion.
+    - division for zero in MAPE ( -> excludes values where y_true == 0).
+    - MAPE > 5000% ( -> conversion in NaN).
+
+    Args:
+        y_true (array-like): real values.
+        y_pred (array-like): predicted values.
+
+    Returns:
+        dict: dictionary containing rounded RMSE, MAE, MAPE, R2.
     """
     y_true = np.array(y_true).flatten()
     y_pred = np.array(y_pred).flatten()
     
-    mse = mean_squared_error(y_true, y_pred)
-    rmse = np.sqrt(mse)
-    mae = mean_absolute_error(y_true, y_pred)
+    mask = ~np.isnan(y_true) & ~np.isnan(y_pred)
+    y_true_clean = y_true[mask]
+    y_pred_clean = y_pred[mask]
+
+    if len(y_true_clean) == 0:
+        return {
+            "RMSE": np.nan, 
+            "MAE": np.nan, 
+            "MAPE": np.nan, 
+            "R2": np.nan
+        }
     
-    # Evitiamo divisione per zero: calcoliamo MAPE solo dove y_true != 0
-    mask = y_true != 0
-    if np.any(mask):
-        # Calcolo standard MAPE: mean(|(true - pred) / true|) * 100
-        mape = np.mean(np.abs((y_true[mask] - y_pred[mask]) / y_true[mask])) * 100
-    else:
-        mape = np.nan  # Se tutti i valori sono 0, il MAPE è impossibile
+    mse = mean_squared_error(y_true_clean, y_pred_clean)
+    rmse = np.sqrt(mse)
+    mae = mean_absolute_error(y_true_clean, y_pred_clean)
+    r2 = r2_score(y_true_clean, y_pred_clean)
+    
+    non_zero_mask = y_true_clean != 0
+    
+    if np.any(non_zero_mask):
+        y_t_safe = y_true_clean[non_zero_mask]
+        y_p_safe = y_pred_clean[non_zero_mask]
         
-    # Se il MAPE è enorme (>1000%), è probabile che ci siano valori vicini allo zero.
-    # In quel caso, meglio restituire NaN o un cap, per non rovinare i grafici.
-    if mape > 5000: 
+        # mean(abs((True-Pred)/True))*100
+        mape_val = np.mean(np.abs((y_t_safe - y_p_safe) / y_t_safe)) * 100
+        
+        if mape_val > 5000:
+            mape = np.nan
+        else:
+            mape = mape_val
+    else:
         mape = np.nan
 
     return {
         "RMSE": round(rmse, 4),
         "MAE": round(mae, 4),
-        "MAPE": round(mape, 2) if not np.isnan(mape) else None
+        "MAPE": round(mape, 2) if not np.isnan(mape) else None,
+        "R2": round(r2, 4)
     }

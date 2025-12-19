@@ -5,7 +5,9 @@ import pandas as pd
 from statsmodels.graphics.tsaplots import plot_acf
 import statsmodels.api as sm
 import scipy.stats as stats
-from src.config import COLORS, SAFE_VAR_NAME, PLOTS_DIR, LINE_STYLES, PLOT_CONFIG
+import textwrap
+import matplotlib.dates as mdates
+from src.config import COLORS, SAFE_VAR_NAMES, REVERSE_VAR_NAMES, PLOTS_DIR, LINE_STYLES, PLOT_CONFIG
 
 plt.rcParams.update(PLOT_CONFIG)
 
@@ -17,14 +19,12 @@ def set_path(model_name, DIR):
     return save_folder
 
 def set_filename(variable_name, model_name):
-    safe_var_name = SAFE_VAR_NAME.get(variable_name, variable_name[:3])
-    filename = f"{str(model_name).lower()}_{safe_var_name}.png"
+    filename = f"{str(model_name)}_{variable_name}.png"
     return filename
 
 def plot_exploratory_time_series(df, x_col='Year', columns=None, save_plots=False, folder_name="01_EDA_Raw_Data"):
     """
     Plots time series data for exploratory analysis using standardized project styles.
-    
     This function adheres to the configurations defined in config.py (COLORS, LINE_STYLES)
     to ensure visual consistency across the project.
 
@@ -36,11 +36,11 @@ def plot_exploratory_time_series(df, x_col='Year', columns=None, save_plots=Fals
         folder_name (str): Sub-folder name within PLOTS_DIR for saving.
     """
     if x_col in df.columns:
-        x_data = df[x_col]
+        use_index = False
         x_label = x_col
     else:
-        x_data = df.index
-        x_label = "Time (Index)"
+        use_index = True
+        x_label = "Year"
 
     if columns is None:
         numeric_cols = df.select_dtypes(include=['number']).columns.tolist()
@@ -50,16 +50,21 @@ def plot_exploratory_time_series(df, x_col='Year', columns=None, save_plots=Fals
     if save_plots:
         save_folder = set_path(folder_name, PLOTS_DIR)
 
-    print(f"Plotting {len(columns)} variables")
+    print(f"Plotting {len(columns)} variables...")
 
     for col in columns:
         series = df[col].dropna()
+        
         if series.empty:
             print(f"Skipping empty: {col}")
             continue
-        x_plot = x_data.loc[series.index]
-
-        plt.figure()
+        
+        if use_index:
+            x_plot = series.index
+        else:
+            x_plot = df.loc[series.index, x_col]
+        
+        plt.figure(figsize=(10, 6))
         plt.plot(
             x_plot, 
             series, 
@@ -69,8 +74,11 @@ def plot_exploratory_time_series(df, x_col='Year', columns=None, save_plots=Fals
             markersize=4,
             label=col
         )
-
-        plt.title(f"EDA: {col}", fontsize=14, fontweight='bold')
+        
+        long_name = REVERSE_VAR_NAMES.get(col, col)
+        title_text = "\n".join(textwrap.wrap(f"EDA: {long_name}", width=60))
+        
+        plt.title(title_text, fontsize=14, fontweight='bold')
         plt.xlabel(x_label)
         plt.ylabel("Value")
         plt.grid(True, linestyle="--", alpha=0.5)
@@ -84,49 +92,78 @@ def plot_exploratory_time_series(df, x_col='Year', columns=None, save_plots=Fals
                 print(f"Saved: {filename}")
             except Exception as e:
                 print(f"Error saving {col}: {e}")
-
-        plt.tight_layout()
-        plt.show()
+        
+        plt.show() 
         plt.close()
 
-def plot_results(df, train, test, baseline, prediction, baseline_model, model_name, variable_name, calc_rmse):
+def plot_forecast(train, test, variable_name, model_name, prediction=None, baseline=None, baseline_name="Baseline", rmse=None, save_plot=True):
     """
-    Plotta i risultati e salva l'immagine in una cartella specifica.
+    Plots the forecast results comparing Train, Test, Baseline (optional), and Prediction (optional).
+    Handles DatetimeIndex automatically.
     
-    Parametri:
-    - train: serie di training
-    - test: serie di test (reale)
-    - prediction: serie predetta dal modello
-    - model_name: nome del modello (es. 'ARIMA', 'MLP')
-    - variable_name: nome della variabile (es. 'GDP_Growth')
+    Args:
+        train (pd.DataFrame or pd.Series): Training data with DatetimeIndex.
+        test (pd.DataFrame or pd.Series): Test data with DatetimeIndex.
+        variable_name (str): Short name of the variable (key in SAFE_VAR_NAMES).
+        model_name (str): Name of the model (e.g., 'ARIMA', 'LSTM', 'Naive').
+        prediction (pd.Series/array, optional): Model predictions.
+        baseline (pd.Series/array, optional): Baseline predictions (e.g., Hist Mean).
+        baseline_name (str): Label for the baseline legend.
+        rmse (float, optional): RMSE value to display in the title.
+        save_plot (bool): Whether to save the figure to disk.
     """
     save_folder = set_path(model_name, PLOTS_DIR)
-    fig, ax = plt.subplots(figsize=(13, 5))
-    ax.plot(train['Year'], train['Value'], '-', color=COLORS['train'], label='Train')
-    ax.plot(test['Year'], test['Value'], '-', color=COLORS['test'], label='Test')
-    ax.plot(test['Year'], baseline, '--', color=COLORS['pred_baseline1'], label=f'Baseline ({baseline_model})')
-    ax.plot(test['Year'], prediction, '--', color=COLORS['pred_model'], label=f'Predicted ({model_name})')
-    ax.set_title(f'{variable_name} - {model_name} (RMSE: {calc_rmse:.2f}%)', y=0.93)
-    ax.set_xlabel('Year')
-    ax.set_ylabel('Value')
-    test_start = int(test['Year'].min())
-    test_end = int(test['Year'].max())
-    ax.axvspan(test_start - 0.5, test_end + 0.5, color='#808080', alpha=0.2)
-    ax.legend(loc='best')
-    plt.title(f'{model_name} forecast: {variable_name}')
-    plt.xlabel('Year')
-    plt.ylabel('Value')
-    plt.legend()
-    plt.grid(True, alpha=0.3)
-    min_year = int(df['Year'].min())
-    max_year = int(df['Year'].max())
-    xticks = np.arange(min_year, max_year + 1, 5)
-    plt.xticks(xticks, [str(y) for y in xticks])
+    fig, ax = plt.subplots(figsize=(12, 6))
     
-    filename = set_filename(variable_name, model_name)
-    full_path = os.path.join(save_folder, filename)
-    plt.savefig(full_path, dpi=300, bbox_inches='tight')
-    print(f"Grafico salvato in: {full_path}")
+    ax.plot(train.index, train['Value'], 
+            label='Train', color=COLORS.get('train', 'black'), linewidth=2)
+    
+    ax.plot(test.index, test['Value'], 
+            label='Test (Real)', color=COLORS.get('test', 'blue'), linewidth=2)
+    
+    if baseline is not None:
+        y_vals = baseline if isinstance(baseline, (pd.Series, list, np.ndarray)) else baseline
+        
+        ax.plot(test.index, y_vals, 
+                linestyle=LINE_STYLES.get('baseline', '--'), 
+                label=f'{baseline_name}', 
+                color=COLORS.get('baseline', 'gray'), alpha=0.8)
+
+    if prediction is not None:
+        y_vals = prediction if isinstance(prediction, (pd.Series, list, np.ndarray)) else prediction
+        
+        ax.plot(test.index, y_vals, 
+                linestyle=LINE_STYLES.get('pred', '--'), 
+                label=f'Pred ({model_name})', 
+                color=COLORS.get('pred', 'red'), linewidth=2)
+
+    ax.axvspan(test.index.min(), test.index.max(), color='#d3d3d3', alpha=0.2)
+
+    long_name = REVERSE_VAR_NAMES.get(variable_name, variable_name)
+    title_text = f"{model_name} Forecast: {long_name}"
+    
+    if rmse is not None:
+        title_text += f"\n(RMSE: {rmse:.4f})"
+    
+    ax.set_title("\n".join(textwrap.wrap(title_text, width=70)), fontsize=14, fontweight='bold')
+    ax.set_ylabel("Value")
+    ax.set_xlabel("Year")
+
+    ax.xaxis.set_major_locator(mdates.YearLocator(5))
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y'))
+    
+    ax.legend(loc='best')
+    ax.grid(True, linestyle='--', alpha=0.4)
+    
+    if save_plot:
+        filename = set_filename(variable_name, model_name)
+        full_path = os.path.join(save_folder, filename)
+        try:
+            plt.savefig(full_path, dpi=300, bbox_inches='tight')
+            print(f"Plot saved: {full_path}")
+        except Exception as e:
+            print(f"Error saving plot: {e}")
+            
     plt.show()
     plt.close()
 
@@ -150,7 +187,7 @@ def plot_augmented(variable_name, df_step, df_jitter, x_train_vals, y_train_vals
     plt.legend()
     plt.grid(True, alpha=0.3)
     
-    safe_var_name = SAFE_VAR_NAME.get(variable_name, variable_name[:3])
+    safe_var_name = SAFE_VAR_NAMES.get(variable_name, variable_name[:3])
     filename = f"AUG_{safe_var_name}.png"
     full_path = os.path.join(save_folder, filename)
     plt.savefig(full_path, dpi=300, bbox_inches='tight')
@@ -339,7 +376,7 @@ def plot_nn_preds(variable_name, predictions_dict, train_df, val_df, test_df, mo
         
         fig.suptitle(f'{variable_name} - {model_name} predictions', fontsize=16, fontweight='bold', y=0.93)
         
-    safe_var_name = SAFE_VAR_NAME.get(variable_name, variable_name[:3])
+    safe_var_name = SAFE_VAR_NAMES.get(variable_name, variable_name[:3])
     filename = f"{model_name}_{safe_var_name}.png"
     
     if not os.path.isabs(save_folder):
@@ -429,7 +466,7 @@ def plot_future_forecasts(variable_name, predictions_dict, train_df, val_df, tes
     axes[1].set_xlabel("Year")
     fig.suptitle(f'{variable_name} - Future Forecast (2025-2030)', fontsize=16, fontweight='bold')
     
-    safe_var_name = SAFE_VAR_NAME.get(variable_name, variable_name[:10].replace(" ", "_"))
+    safe_var_name = SAFE_VAR_NAMES.get(variable_name, variable_name[:10].replace(" ", "_"))
     filename = f"FUTURE_{model_name}_{safe_var_name}.png"
     full_path = os.path.join(save_folder, filename)
     
