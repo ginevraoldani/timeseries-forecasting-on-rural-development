@@ -1,3 +1,40 @@
+import pandas as pd
+
+def split_train_test(df, col_name, train_ratio=0.8):
+    """
+    Extracts a specific column and splits it into Train and Test sets based on time.
+    
+    Args:
+        df (pd.DataFrame): DataFrame with DatetimeIndex.
+        col_name (str): The column name to split.
+        train_ratio (float): Proportion of data for training (default 0.8).
+        
+    Returns:
+        tuple: (train_df, test_df). Both are DataFrames with a 'Value' column.
+            Returns (None, None) if data is insufficient/empty.
+    """
+    series = df[col_name].dropna()
+    
+    if series.empty:
+        print(f"Skipping {col_name}: no data")
+        return None, None
+    
+    n_samples = len(series)
+    
+    split_idx = int(n_samples * train_ratio)
+    
+    # Check if split is valid (need at least 1 point for train and 1 for test)
+    if split_idx == 0 or split_idx >= n_samples:
+        print(f"Skipping {col_name}: insufficient data for split (n={n_samples})")
+        return None, None
+    
+    # Perform Split and Standardize to DataFrame
+    # Using .iloc for positional splitting on sorted time series
+    train = series.iloc[:split_idx].to_frame(name='Value')
+    test = series.iloc[split_idx:].to_frame(name='Value')
+    
+    return train, test
+
 def split_train_val_test(df):
     """ split time series in train, validation and test set with 70-15-15 ratio
     train set (70%) --> backpropagation

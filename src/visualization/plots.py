@@ -22,18 +22,18 @@ def set_filename(variable_name, model_name):
     filename = f"{str(model_name)}_{variable_name}.png"
     return filename
 
-def plot_exploratory_time_series(df, x_col='Year', columns=None, save_plots=False, folder_name="01_EDA_Raw_Data"):
+def plot_exploratory_time_series(df, folder_name, x_col='Year', columns=None, save_plots=False):
     """
     Plots time series data for exploratory analysis using standardized project styles.
     This function adheres to the configurations defined in config.py (COLORS, LINE_STYLES)
     to ensure visual consistency across the project.
 
     Args:
-        df (pd.DataFrame): Input DataFrame.
-        x_col (str): Column name for X-axis. Defaults to 'Year'. If missing, index is used.
-        columns (list, optional): List of columns to plot. If None, selects all numeric cols.
-        save_plots (bool): Whether to save the plots to disk.
-        folder_name (str): Sub-folder name within PLOTS_DIR for saving.
+        df (pd.DataFrame): input DataFrame.
+        folder_name (str): sub-folder name within PLOTS_DIR for saving.
+        x_col (str): column name for X-axis. Defaults to 'Year'. If missing, index is used.
+        columns (list, optional): list of columns to plot. If None, selects all numeric cols.
+        save_plots (bool): whether to save the plots to disk.
     """
     if x_col in df.columns:
         use_index = False
@@ -51,18 +51,13 @@ def plot_exploratory_time_series(df, x_col='Year', columns=None, save_plots=Fals
         save_folder = set_path(folder_name, PLOTS_DIR)
 
     print(f"Plotting {len(columns)} variables...")
-
     for col in columns:
         series = df[col].dropna()
-        
         if series.empty:
             print(f"Skipping empty: {col}")
             continue
-        
-        if use_index:
-            x_plot = series.index
-        else:
-            x_plot = df.loc[series.index, x_col]
+        if use_index: x_plot = series.index
+        else: x_plot = df.loc[series.index, x_col]
         
         plt.figure(figsize=(10, 6))
         plt.plot(
@@ -96,30 +91,39 @@ def plot_exploratory_time_series(df, x_col='Year', columns=None, save_plots=Fals
         plt.show() 
         plt.close()
 
-def plot_forecast(train, test, variable_name, model_name, prediction=None, baseline=None, baseline_name="Baseline", rmse=None, save_plot=True):
+def plot_forecast(train, test, variable_name, model_name, folder_name, prediction=None, baseline=None, baseline_name="Baseline", rmse=None, save_plot=True):
     """
     Plots the forecast results comparing Train, Test, Baseline (optional), and Prediction (optional).
     Handles DatetimeIndex automatically.
     
     Args:
-        train (pd.DataFrame or pd.Series): Training data with DatetimeIndex.
-        test (pd.DataFrame or pd.Series): Test data with DatetimeIndex.
-        variable_name (str): Short name of the variable (key in SAFE_VAR_NAMES).
-        model_name (str): Name of the model (e.g., 'ARIMA', 'LSTM', 'Naive').
-        prediction (pd.Series/array, optional): Model predictions.
-        baseline (pd.Series/array, optional): Baseline predictions (e.g., Hist Mean).
-        baseline_name (str): Label for the baseline legend.
+        train (pd.DataFrame or pd.Series): training data with DatetimeIndex.
+        test (pd.DataFrame or pd.Series): test data with DatetimeIndex.
+        variable_name (str): short name of the variable (key in SAFE_VAR_NAMES).
+        model_name (str): name of the model (e.g., 'ARIMA', 'LSTM', 'Naive').
+        folder_name (str): sub-folder name within PLOTS_DIR for saving.
+        prediction (pd.Series/array, optional): model predictions.
+        baseline (pd.Series/array, optional): abseline predictions (e.g., Hist Mean).
+        baseline_name (str): label for the baseline legend.
         rmse (float, optional): RMSE value to display in the title.
-        save_plot (bool): Whether to save the figure to disk.
+        save_plot (bool): whether to save the figure to disk.
     """
-    save_folder = set_path(model_name, PLOTS_DIR)
+    save_folder = set_path(folder_name, PLOTS_DIR)
     fig, ax = plt.subplots(figsize=(12, 6))
     
     ax.plot(train.index, train['Value'], 
-            label='Train', color=COLORS.get('train', 'black'), linewidth=2)
+            label='Train', color=COLORS.get('train', 'black'), marker='.', linewidth=2)
     
     ax.plot(test.index, test['Value'], 
-            label='Test (Real)', color=COLORS.get('test', 'blue'), linewidth=2)
+            label='Test (Real)', color=COLORS.get('test', 'blue'), marker='.', linewidth=2)
+    
+    # Connetti ultimo valore train con primo valore test
+    last_train_idx = train.index[-1]
+    last_train_val = train['Value'].iloc[-1]
+    first_test_idx = test.index[0]
+    first_test_val = test['Value'].iloc[0]
+    ax.plot([last_train_idx, first_test_idx], [last_train_val, first_test_val], 
+            color=COLORS.get('test', 'blue'), linewidth=2)
     
     if baseline is not None:
         y_vals = baseline if isinstance(baseline, (pd.Series, list, np.ndarray)) else baseline
@@ -128,6 +132,12 @@ def plot_forecast(train, test, variable_name, model_name, prediction=None, basel
                 linestyle=LINE_STYLES.get('baseline', '--'), 
                 label=f'{baseline_name}', 
                 color=COLORS.get('baseline', 'gray'), alpha=0.8)
+        
+        # Connetti ultimo valore train con prima predizione baseline
+        first_baseline_val = y_vals[0] if isinstance(y_vals, (list, np.ndarray)) else y_vals.iloc[0]
+        ax.plot([last_train_idx, first_test_idx], [last_train_val, first_baseline_val], 
+                linestyle=LINE_STYLES.get('baseline', '--'), 
+                color=COLORS.get('baseline', 'gray'), alpha=0.8)
 
     if prediction is not None:
         y_vals = prediction if isinstance(prediction, (pd.Series, list, np.ndarray)) else prediction
@@ -135,9 +145,15 @@ def plot_forecast(train, test, variable_name, model_name, prediction=None, basel
         ax.plot(test.index, y_vals, 
                 linestyle=LINE_STYLES.get('pred', '--'), 
                 label=f'Pred ({model_name})', 
+                color=COLORS.get('pred', 'red'), marker='.', linewidth=2)
+        
+        # Connetti ultimo valore train con prima predizione
+        first_pred_val = y_vals[0] if isinstance(y_vals, (list, np.ndarray)) else y_vals.iloc[0]
+        ax.plot([last_train_idx, first_test_idx], [last_train_val, first_pred_val], 
+                linestyle=LINE_STYLES.get('pred', '--'), 
                 color=COLORS.get('pred', 'red'), linewidth=2)
 
-    ax.axvspan(test.index.min(), test.index.max(), color='#d3d3d3', alpha=0.2)
+    ax.axvspan(train.index.max(), test.index.max(), color='#d3d3d3', alpha=0.2)
 
     long_name = REVERSE_VAR_NAMES.get(variable_name, variable_name)
     title_text = f"{model_name} Forecast: {long_name}"
@@ -148,9 +164,6 @@ def plot_forecast(train, test, variable_name, model_name, prediction=None, basel
     ax.set_title("\n".join(textwrap.wrap(title_text, width=70)), fontsize=14, fontweight='bold')
     ax.set_ylabel("Value")
     ax.set_xlabel("Year")
-
-    ax.xaxis.set_major_locator(mdates.YearLocator(5))
-    ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y'))
     
     ax.legend(loc='best')
     ax.grid(True, linestyle='--', alpha=0.4)
@@ -164,6 +177,68 @@ def plot_forecast(train, test, variable_name, model_name, prediction=None, basel
         except Exception as e:
             print(f"Error saving plot: {e}")
             
+    plt.show()
+    plt.close()
+
+def plot_future_forecasts(history_series, future_df, variable_name, model_name, folder_name, save_plots=True):
+    """
+    Plotta la serie storica completa e la proiezione futura (2025-2030).
+    
+    Args:
+        history_series (pd.Series): La serie completa dei dati storici (fino al 2024).
+        future_df (pd.DataFrame): DataFrame con colonne ['year', 'pred'] e opzionalmente ['lower_ci', 'upper_ci'].
+        variable_name (str): Nome dell'indicatore.
+        model_name (str): Nome del modello.
+    """
+    if future_df is None or future_df.empty:
+        print(f"Skipping future plot for {variable_name}: No future data.")
+        return
+
+    save_folder = set_path(folder_name, PLOTS_DIR)
+
+    plt.figure(figsize=(12, 6))
+    
+    if hasattr(history_series.index, 'year'): x_hist = history_series.index.year
+    else: x_hist = history_series.index
+        
+    plt.plot(x_hist, history_series.values, label='Historical Data', color=COLORS.get('train', 'black'), marker='.', linewidth=2)
+    
+    last_year = x_hist.max()
+    last_val = history_series.values[-1]
+    
+    connect_x = [last_year, future_df['year'].iloc[0]]
+    connect_y = [last_val, future_df['pred'].iloc[0]]
+    plt.plot(connect_x, connect_y, color=COLORS.get('pred_model', 'red'), linestyle='--', linewidth=2)
+
+    plt.plot(future_df['year'], future_df['pred'], label=f'Forecast {model_name}', 
+            color=COLORS.get('pred_model', 'red'), linestyle='--', linewidth=2, markersize=4)
+    
+    # Intervallo di Confidenza (Se esiste)
+    if 'lower_ci' in future_df.columns and 'upper_ci' in future_df.columns:
+        plt.fill_between(
+            future_df['year'], 
+            future_df['lower_ci'], 
+            future_df['upper_ci'], 
+            color=COLORS.get('pred_model', 'red'), alpha=0.15, label='95% Confidence Interval'
+        )
+    
+    plt.axvspan(last_year, 2030, color='#d3d3d3', alpha=0.2)
+    
+    long_name = REVERSE_VAR_NAMES.get(variable_name, variable_name)
+    title_text = f"Future Forecast ({last_year}-2030): {long_name}"
+    plt.title("\n".join(textwrap.wrap(title_text, width=70)), fontsize=14, fontweight='bold')
+    
+    plt.xlabel("Year")
+    plt.ylabel("Value")
+    plt.legend(loc='best')
+    plt.grid(True, linestyle='--', alpha=0.4)
+    
+    if save_plots:
+        filename = set_filename(variable_name, f"future{model_name}")
+        full_path = os.path.join(save_folder, filename)
+        plt.savefig(full_path, dpi=300, bbox_inches='tight')
+        print(f"Future Plot saved: {full_path}")
+        
     plt.show()
     plt.close()
 
@@ -398,80 +473,3 @@ def plot_nn_preds(variable_name, predictions_dict, train_df, val_df, test_df, mo
         print(f"errore salvataggio: {e}")
     plt.show()
     plt.close()
-
-def plot_future_forecasts(variable_name, predictions_dict, train_df, val_df, test_df, model_name):
-    save_folder = os.path.join(PLOTS_DIR, str(model_name))
-    if not os.path.exists(save_folder):
-        os.makedirs(save_folder)
-
-    full_df = pd.concat([train_df, val_df, test_df]).sort_values('Year')
-    years_full = full_df['Year'].values
-    values_full = full_df['Value'].values
-    
-    last_year_hist = years_full[-1]
-    last_val_hist = values_full[-1]
-
-    if variable_name not in predictions_dict:
-        print(f"Skipping plot for {variable_name}: No predictions found.")
-        return
-    data = predictions_dict[variable_name]
-
-    fig, axes = plt.subplots(2, 1, figsize=(14, 12), sharex=True)
-    
-    styles = {
-        'orig':       {'color': COLORS['pred_orig'], 'ls': LINE_STYLES['baseline'], 'label': 'Pred - Orig'},
-        'step_aug':   {'color': COLORS['pred_step'], 'ls': LINE_STYLES['aug'], 'label': 'Pred - Step Aug'},
-        'jitter_aug': {'color': COLORS['pred_jitter'], 'ls': LINE_STYLES['aug'],  'label': 'Pred - Jitter Aug'}
-    }
-    
-    for i, sampler in enumerate(['Random', 'TPE']):
-        ax = axes[i]
-        sampler_data = data.get(sampler, {})
-        
-        ax.plot(years_full, values_full, '-', marker='.', color=COLORS['train'], label='Train')
-
-        if sampler_data:
-            for ds_type, res in sampler_data.items():
-                years_pred = res.get('years', [])
-                y_pred = res.get('y_pred', [])
-                
-                rmse = None
-                metrics = res.get('metrics')
-                if metrics and isinstance(metrics, dict) and 'RMSE' in metrics:
-                    rmse = metrics['RMSE']
-
-                style = styles.get(ds_type, {})
-                label_base = style.get('label', ds_type)
-                label_txt = f"{label_base} (RMSE: {rmse:.2f})" if rmse is not None else label_base
-
-                plot_years = np.concatenate([[last_year_hist], years_pred])
-                plot_values = np.concatenate([[last_val_hist], y_pred])
-
-                ax.plot(plot_years, plot_values, 
-                        color=style.get('color', 'red'), 
-                        linestyle=style.get('ls', '--'), 
-                        linewidth=2, 
-                        label=label_txt)
-        
-        if sampler_data:
-            max_year = max([max(v['years']) for v in sampler_data.values()])
-            ax.axvspan(last_year_hist, max_year, color='#808080', alpha=0.2)
-
-        ax.set_title(f"Optimization Method: {sampler}", fontsize=14)
-        ax.set_xlabel("Year")
-        ax.set_ylabel("Value")
-        ax.legend(loc='best')
-        ax.grid(True, alpha=0.3)
-
-    axes[1].set_xlabel("Year")
-    fig.suptitle(f'{variable_name} - Future Forecast (2025-2030)', fontsize=16, fontweight='bold')
-    
-    safe_var_name = SAFE_VAR_NAMES.get(variable_name, variable_name[:10].replace(" ", "_"))
-    filename = f"FUTURE_{model_name}_{safe_var_name}.png"
-    full_path = os.path.join(save_folder, filename)
-    
-    plt.tight_layout()
-    plt.savefig(full_path, dpi=300, bbox_inches='tight')
-    plt.show()
-    plt.close()
-    print(f"Grafico salvato: {full_path}")

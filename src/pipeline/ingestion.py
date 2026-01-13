@@ -8,10 +8,10 @@ def load_data(filepath=RAW_DATA_FILE):
     applies variable renaming, and sets a proper DatetimeIndex.
 
     Args:
-        filepath (str): Path to the processed Excel file (Italy data).
+        filepath (str): path to the processed Excel file (Italy data).
 
     Returns:
-        pd.DataFrame: A cleaned dataframe with DatetimeIndex (Annual) and renamed indicators.
+        pd.DataFrame: a cleaned dataframe with DatetimeIndex (Annual) and renamed indicators.
     """
     if not os.path.exists(filepath):
         raise FileNotFoundError(f"File not found: {filepath}")

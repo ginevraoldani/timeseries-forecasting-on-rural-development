@@ -1,1 +1,1 @@
-from .saving import log_experiment_results, save_future_forecasts
+from .saving import save_experiment_results
