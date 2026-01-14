@@ -1,6 +1,20 @@
 import numpy as np
 import pandas as pd
+from statsmodels.tsa.stattools import adfuller
 from sklearn.preprocessing import MinMaxScaler
+
+def test_stationarity(series: pd.Series) -> bool:    
+    """Checks if a time serie is stationary with an ADF test.
+    
+    Args:
+        series (pd.Series with float values): one time serie in the initial dataset.
+        
+    Returns:
+        bool: if p-value < 0.05 returns True [series is stationary],  
+                        else it returns False [series is not stationary]
+    """
+    result = adfuller(series.dropna())
+    return result[1] < 0.05
 
 # avevo scalato gli anni ma è inutile quindi scalo solamente i valori
 def scale_datasets(single_orig_aug_subsets):

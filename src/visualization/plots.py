@@ -145,7 +145,7 @@ def plot_forecast(train, test, variable_name, model_name, folder_name, predictio
         ax.plot(test.index, y_vals, 
                 linestyle=LINE_STYLES.get('pred', '--'), 
                 label=f'Pred ({model_name})', 
-                color=COLORS.get('pred', 'red'), marker='.', linewidth=2)
+                color=COLORS.get('pred', 'red'), linewidth=2)
         
         # Connetti ultimo valore train con prima predizione
         first_pred_val = y_vals[0] if isinstance(y_vals, (list, np.ndarray)) else y_vals.iloc[0]
@@ -241,6 +241,64 @@ def plot_future_forecasts(history_series, future_df, variable_name, model_name, 
         
     plt.show()
     plt.close()
+
+def plot_baseline_comparison(train, test, future_years, predictions_dict, variable_name, save_plot=True):
+    """
+    Plotta: Storia + Test Reale + Predizioni Test (vari modelli) + Futuro (vari modelli).
+    """
+    # Setup
+    folder_name = "00_Baselines_Comparison"
+    save_folder = set_path(folder_name, PLOTS_DIR) # Assicurati che PLOTS_DIR sia importato
+    
+    plt.figure(figsize=(14, 7))
+    
+    # 1. Dati Reali (Train e Test)
+    plt.plot(train.index.year, train['Value'], label='Train Data', color='black', linewidth=2)
+    plt.plot(test.index.year, test['Value'], label='Test Data (Ground Truth)', color='gray', linewidth=2, alpha=0.7)
+    
+    # Colori per i modelli
+    colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728'] # Blu, Arancio, Verde, Rosso
+    
+    # 2. Loop sui modelli (Dizionario: { 'NomeModello': (pred_test, pred_future) })
+    for i, (model_name, (pred_test, pred_future)) in enumerate(predictions_dict.items()):
+        color = colors[i % len(colors)]
+        
+        # A. Plot Test Prediction (Tratteggiato)
+        # Allineamento asse X
+        plt.plot(test.index.year, pred_test.values, 
+                label=f'{model_name} (Test)', 
+                color=color, linestyle='--', linewidth=1.5)
+        
+        # B. Plot Future Prediction (Punteggiato)
+        if pred_future is not None:
+            # Linea di connessione (Ultimo punto Test -> Primo Futuro) per continuità
+            connect_x = [test.index.year[-1], future_years[0]]
+            connect_y = [pred_test.values[-1], pred_future.values[0]]
+            plt.plot(connect_x, connect_y, color=color, linestyle=':', linewidth=1)
+            
+            # Plot vero e proprio
+            plt.plot(future_years, pred_future.values, 
+                    # label=f'{model_name} (2030)', # Non mettiamo label doppia per pulizia
+                    color=color, linestyle=':', linewidth=2, marker='.', markersize=4)
+
+    # 3. Formattazione
+    plt.axvline(x=test.index.year[0], color='gray', linestyle='-', alpha=0.3)
+    plt.axvline(x=future_years[0], color='black', linestyle='-', alpha=0.5, label='Future Start')
+    
+    plt.title(f"Baseline Models Comparison: {variable_name}", fontsize=14, fontweight='bold')
+    plt.xlabel("Year")
+    plt.ylabel("Value")
+    plt.legend(loc='upper left', bbox_to_anchor=(1, 1)) # Legenda fuori dal grafico
+    plt.grid(True, linestyle='--', alpha=0.3)
+    plt.tight_layout()
+    
+    if save_plot:
+        filename = f"COMPARE_{variable_name}.png"
+        plt.savefig(os.path.join(save_folder, filename), dpi=300)
+        
+    plt.show()
+    plt.close()
+
 
 def plot_augmented(variable_name, df_step, df_jitter, x_train_vals, y_train_vals):
     """ plots original time series 
