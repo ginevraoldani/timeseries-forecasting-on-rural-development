@@ -17,6 +17,7 @@ MODELS_DIR = os.path.join(RESULTS_DIR, "saved_models")
 
 # path file specifici da aggiornare durante esecuzione modelli
 RAW_DATA_FILE = os.path.join(DATA_DIR, "processed_italy_data.xlsx")
+INTEGRATION_FILE = os.path.join(RESULTS_DIR, "integration_orders.xlsx")
 PERFORMANCE_FILE = os.path.join(ERRORS_DIR, "performance_metrics.xlsx")
 PARAMS_FILE = os.path.join(LOGS_DIR, "model_params.xlsx")
 RESIDUALS_FILE = os.path.join(ERRORS_DIR, "residuals_diagnostics.xlsx")
@@ -91,6 +92,17 @@ def get_complete_path(base_dir, model_name, variable_name, ext=".png"):
     
     filename = f"{str(model_name)}_{safe_var}{ext}"
     return os.path.join(save_folder, filename)
+
+def set_path(model_name, DIR):
+    save_folder = os.path.join(DIR, str(model_name))
+    if not os.path.exists(save_folder):
+        os.makedirs(save_folder)
+        print(f"Cartella creata: {save_folder}")
+    return save_folder
+
+def set_filename(variable_name, model_name):
+    filename = f"{str(model_name)}_{variable_name}.png"
+    return filename
 
 COLORS = {
     'train':        '#4a5568',

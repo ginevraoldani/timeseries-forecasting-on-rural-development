@@ -7,89 +7,10 @@ import statsmodels.api as sm
 import scipy.stats as stats
 import textwrap
 import matplotlib.dates as mdates
+from src.config import set_path, set_filename
 from src.config import COLORS, SAFE_VAR_NAMES, REVERSE_VAR_NAMES, PLOTS_DIR, LINE_STYLES, PLOT_CONFIG
 
 plt.rcParams.update(PLOT_CONFIG)
-
-def set_path(model_name, DIR):
-    save_folder = os.path.join(DIR, str(model_name))
-    if not os.path.exists(save_folder):
-        os.makedirs(save_folder)
-        print(f"Cartella creata: {save_folder}")
-    return save_folder
-
-def set_filename(variable_name, model_name):
-    filename = f"{str(model_name)}_{variable_name}.png"
-    return filename
-
-def plot_exploratory_time_series(df, folder_name, x_col='Year', columns=None, save_plots=False):
-    """
-    Plots time series data for exploratory analysis using standardized project styles.
-    This function adheres to the configurations defined in config.py (COLORS, LINE_STYLES)
-    to ensure visual consistency across the project.
-
-    Args:
-        df (pd.DataFrame): input DataFrame.
-        folder_name (str): sub-folder name within PLOTS_DIR for saving.
-        x_col (str): column name for X-axis. Defaults to 'Year'. If missing, index is used.
-        columns (list, optional): list of columns to plot. If None, selects all numeric cols.
-        save_plots (bool): whether to save the plots to disk.
-    """
-    if x_col in df.columns:
-        use_index = False
-        x_label = x_col
-    else:
-        use_index = True
-        x_label = "Year"
-
-    if columns is None:
-        numeric_cols = df.select_dtypes(include=['number']).columns.tolist()
-        columns = [c for c in numeric_cols if c != x_col]
-
-    save_folder = None
-    if save_plots:
-        save_folder = set_path(folder_name, PLOTS_DIR)
-
-    print(f"Plotting {len(columns)} variables...")
-    for col in columns:
-        series = df[col].dropna()
-        if series.empty:
-            print(f"Skipping empty: {col}")
-            continue
-        if use_index: x_plot = series.index
-        else: x_plot = df.loc[series.index, x_col]
-        
-        plt.figure(figsize=(10, 6))
-        plt.plot(
-            x_plot, 
-            series, 
-            color=COLORS.get('train', 'blue'),
-            linestyle=LINE_STYLES.get('real', '-'),
-            marker='o', 
-            markersize=4,
-            label=col
-        )
-        
-        long_name = REVERSE_VAR_NAMES.get(col, col)
-        title_text = "\n".join(textwrap.wrap(f"EDA: {long_name}", width=60))
-        
-        plt.title(title_text, fontsize=14, fontweight='bold')
-        plt.xlabel(x_label)
-        plt.ylabel("Value")
-        plt.grid(True, linestyle="--", alpha=0.5)
-        plt.legend(loc='best')
-
-        if save_plots and save_folder:
-            filename = set_filename(col, "EDA")
-            full_path = os.path.join(save_folder, filename)
-            try:
-                plt.savefig(full_path, dpi=300, bbox_inches='tight')
-                print(f"Saved: {filename}")
-            except Exception as e:
-                print(f"Error saving {col}: {e}")
-        
-        plt.show() 
-        plt.close()
 
 def plot_forecast(train, test, variable_name, model_name, folder_name, prediction=None, baseline=None, baseline_name="Baseline", rmse=None, save_plot=True):
     """
@@ -189,6 +110,7 @@ def plot_future_forecasts(history_series, future_df, variable_name, model_name, 
         future_df (pd.DataFrame): DataFrame con colonne ['year', 'pred'] e opzionalmente ['lower_ci', 'upper_ci'].
         variable_name (str): Nome dell'indicatore.
         model_name (str): Nome del modello.
+        folder_name (str): name of the folder where plots will be saved.
     """
     if future_df is None or future_df.empty:
         print(f"Skipping future plot for {variable_name}: No future data.")

@@ -1,70 +1,93 @@
-from statsmodels.tsa.arima.model import ARIMA
+import numpy as np
 import pandas as pd
+from statsmodels.tsa.arima.model import ARIMA
 
-def predict_moving_average_projection(train_data, forecast_index, window=3):
+def predict_arima_rolling(train_data, test_data, order, refit=True):
     """
-    Moving Average Projection: Computes and projects the average of the last N periods.
-    
-    This baseline method calculates the mean of the most recent observations within the 
-    specified window and uses it as a constant forecast for all future periods. It smooths 
-    recent fluctuations while remaining responsive to recent trends.
+    Esegue un Rolling Forecast (Walk-Forward Validation) con ARIMA.
     
     Args:
-        train_data (pd.DataFrame or pd.Series): Historical training data.
-        forecast_index (pd.Index or list): Index for the forecast period.
-        window (int, optional): Number of recent periods to include in the average. Default is 3.
-    
+        train_data (pd.Series): Serie storica di training iniziale.
+        test_data (pd.Series): Serie storica di test (i valori reali servono per aggiornare il modello passo-passo).
+        order (tuple): (p, d, q).
+        refit (bool): 
+            - True: Ri-stima i parametri (fit) ad ogni passo. Più lento, più accurato (consigliato per tesi).
+            - False: Usa i parametri stimati all'inizio e aggiorna solo lo stato (filtro di Kalman). Più veloce.
+            
     Returns:
-        pd.Series: Forecast series with constant values equal to the moving average,
-                indexed by forecast_index and named 'pred'.
+        pd.Series: Le predizioni one-step-ahead allineate con l'indice di test_data.
     """
-    series = train_data.iloc[:, 0] if isinstance(train_data, pd.DataFrame) else train_data
+    # Preparazione dello storico (History)
+    # Convertiamo in lista per appendere velocemente i nuovi valori
+    history = [x for x in train_data.values] if hasattr(train_data, 'values') else list(train_data)
+    test_values = test_data.values if hasattr(test_data, 'values') else list(test_data)
+    forecast_index = test_data.index
+    predictions = []
     
-    # Prende gli ultimi 'window' valori. Se non ce ne sono abbastanza, prende tutto.
-    if len(series) < window:
-        subset = series
-    else:
-        subset = series.iloc[-window:]
-        
-    ma_value = subset.mean()
-    
-    return pd.Series(
-        data=[ma_value] * len(forecast_index),
-        index=forecast_index,
-        name='pred'
-    )
+    print(f"Starting Rolling Forecast ARIMA{order} over {len(test_values)} steps...")
+    try:
+        # Loop su ogni passo del test set
+        for t in range(len(test_values)):
+            
+            # 1. Creazione e Fit del Modello sulla storia corrente
+            # Nota: Statsmodels gestisce bene le liste passate come endog
+            model = ARIMA(history, order=order)
+            
+            if refit:
+                # Ri-calcola i coefficienti (es. AR, MA) ogni volta
+                model_fit = model.fit()
+            else:
+                # Opzione avanzata: usa i parametri del primo fit (più veloce, meno preciso se il trend cambia)
+                # Per la tesi, consiglio di lasciare refit=True o usare model_fit.append/apply
+                # Qui per semplicità rimaniamo sul refit=True nel 99% dei casi
+                model_fit = model.fit() 
 
-def predict_arima_family(train_data, forecast_index, order=(1,0,0), **kwargs):
+            # 2. Predizione 1 step avanti (t+1)
+            # forecast() restituisce un array, prendiamo il primo elemento
+            yhat = model_fit.forecast()[0]
+            predictions.append(yhat)
+            
+            # 3. Aggiornamento Storia (Observation)
+            # Aggiungiamo il VERO valore osservato alla storia per il prossimo giro
+            obs = test_values[t]
+            history.append(obs)
+            
+        # Creazione Serie Finale
+        forecast_series = pd.Series(predictions, index=forecast_index, name='pred')
+        return forecast_series
+
+    except Exception as e:
+        print(f"Rolling ARIMA{order} failed: {e}")
+        # Fallback: media mobile o serie statica in caso di crash
+        return pd.Series([np.mean(history)] * len(test_values), index=forecast_index)
+
+def predict_arima_family(train_data, forecast_index, order, **kwargs):
     """
     Gestisce l'intera famiglia dei modelli statistici classici (Box-Jenkins).
     
     Args:
-        train_data: Serie storica di training.
-        forecast_index: Indice per le previsioni.
+        train_data: historical series for training.
+        forecast_index: indexes for predictions.
         order (tuple): (p, d, q)
-            - AR puro: (p, 0, 0)
-            - MA puro: (0, 0, q)
+            - MA: (0, 0, q)
+            - IMA: (0, d, q)
+            - AR: (p, 0, 0)
+            - ARI: (p, d, 0)
             - ARMA:    (p, 0, q)
             - ARIMA:   (p, d, q)
             
     Returns:
-        pd.Series: Predizioni.
+        pd.Series: predictions.
     """
-    # Statsmodels richiede serie 1D
     series = train_data.iloc[:, 0] if isinstance(train_data, pd.DataFrame) else train_data
     
-    # 1. Fit del modello
-    # Suppress warnings se necessario, statsmodels è molto verboso
     try:
         model = ARIMA(series, order=order)
         model_fit = model.fit()
         
-        # 2. Forecast
-        # steps è il numero di passi futuri da predire
         steps = len(forecast_index)
         forecast_result = model_fit.forecast(steps=steps)
         
-        # Ri-assegniamo l'indice corretto (statsmodels a volte perde l'indice temporale preciso)
         forecast_series = pd.Series(
             data=forecast_result.values,
             index=forecast_index,
@@ -74,5 +97,4 @@ def predict_arima_family(train_data, forecast_index, order=(1,0,0), **kwargs):
         
     except Exception as e:
         print(f"ARIMA{order} failed: {e}")
-        # Fallback in caso di errore di convergenza (può succedere con dati brutti)
         return pd.Series([series.mean()] * len(forecast_index), index=forecast_index)

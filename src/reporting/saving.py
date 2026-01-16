@@ -5,6 +5,7 @@ from collections.abc import MutableMapping
 from datetime import datetime
 import src.evaluation as eval
 from src.config import (
+    INTEGRATION_FILE,
     PERFORMANCE_FILE, 
     PARAMS_FILE, 
     RESIDUALS_FILE, 
@@ -121,4 +122,18 @@ def save_experiment_results(indicator, model_name, configuration, y_test, y_pred
         print("Save complete.")
     except Exception as e:
         print(f"ERROR: {e}")
+        traceback.print_exc()
+        
+def save_master_config(df_config, filepath=INTEGRATION_FILE):
+    """
+    Salva il dataframe di configurazione (Integration Orders) in Excel.
+    Sovrascrive il file se esiste per garantire che la configurazione sia sempre
+    l'ultima versione calcolata.
+    """
+    os.makedirs(os.path.dirname(filepath), exist_ok=True)
+    try:
+        df_config.to_excel(filepath)
+        print(f"Configuration successfully saved to: {filepath}")
+    except Exception as e:
+        print(f"ERROR saving configuration: {e}")
         traceback.print_exc()

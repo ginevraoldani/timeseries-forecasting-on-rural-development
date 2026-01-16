@@ -21,6 +21,8 @@ def load_data(filepath=RAW_DATA_FILE):
     if 'Indicator Name' not in df.columns:
         raise ValueError("The DataFrame must contain an 'Indicator Name' column.")
     
+    original_order = df['Indicator Name'].unique()
+    
     # Identify Year Columns
     year_cols = [col for col in df.columns if str(col).isdigit()]
     if not year_cols:
@@ -38,6 +40,9 @@ def load_data(filepath=RAW_DATA_FILE):
     # Index: Year, Columns: Indicator Name
     df_wide = df_long.pivot(index='Year', columns='Indicator Name', values='Value')
     
+    cols_in_correct_order = [col for col in original_order if col in df_wide.columns]
+    df_wide = df_wide[cols_in_correct_order]
+    
     # Drop Unusable Columns (Using UNUSABLE from config)
     cols_to_drop = [col for col in df_wide.columns if col in UNUSABLE]
     if cols_to_drop:
@@ -50,11 +55,7 @@ def load_data(filepath=RAW_DATA_FILE):
     
     # Setup DatetimeIndex -> convertiamo l'anno (int) in datetime (1° Gennaio dell'anno)
     df_wide.index = pd.to_datetime(df_wide.index, format='%Y')
-    
-    # Impostiamo esplicitamente la frequenza 'YS' (Year Start).
     df_wide = df_wide.asfreq('YS')
-    
-    # Ordiniamo l'indice per sicurezza
     df_wide = df_wide.sort_index()
     
     # Rimuoviamo il nome dell'indice 'Year' e delle colonne 'Indicator Name' per pulizia
