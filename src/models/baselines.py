@@ -126,3 +126,18 @@ def predict_random_walk_drift(train_data, forecast_index, **kwargs):
         index=forecast_index,
         name='pred'
     )
+
+# ---------- WRAPPER TO CALL ONE BASELINE -------------------
+BASELINE_MODELS = {
+    'mean': predict_historical_mean,
+    'naive': predict_random_walk,
+    'drift': predict_random_walk_drift,
+    'seasonal': predict_seasonal_naive
+}
+
+def get_baseline_prediction(method_name, train_data, forecast_index):
+    if method_name not in BASELINE_MODELS:
+        raise ValueError(f"Baseline '{method_name}' not found.")
+    
+    model_func = BASELINE_MODELS[method_name]
+    return model_func(train_data, forecast_index)

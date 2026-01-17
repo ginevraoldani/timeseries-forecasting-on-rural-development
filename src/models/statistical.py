@@ -26,15 +26,10 @@ def predict_arima_rolling(train_data, test_data, order, refit=True):
     
     print(f"Starting Rolling Forecast ARIMA{order} over {len(test_values)} steps...")
     try:
-        # Loop su ogni passo del test set
         for t in range(len(test_values)):
-            
-            # 1. Creazione e Fit del Modello sulla storia corrente
-            # Nota: Statsmodels gestisce bene le liste passate come endog
             model = ARIMA(history, order=order)
             
             if refit:
-                # Ri-calcola i coefficienti (es. AR, MA) ogni volta
                 model_fit = model.fit()
             else:
                 # Opzione avanzata: usa i parametri del primo fit (più veloce, meno preciso se il trend cambia)
@@ -42,12 +37,12 @@ def predict_arima_rolling(train_data, test_data, order, refit=True):
                 # Qui per semplicità rimaniamo sul refit=True nel 99% dei casi
                 model_fit = model.fit() 
 
-            # 2. Predizione 1 step avanti (t+1)
+            # Predizione 1 step avanti (t+1)
             # forecast() restituisce un array, prendiamo il primo elemento
             yhat = model_fit.forecast()[0]
             predictions.append(yhat)
             
-            # 3. Aggiornamento Storia (Observation)
+            # Aggiornamento Storia (Observation)
             # Aggiungiamo il VERO valore osservato alla storia per il prossimo giro
             obs = test_values[t]
             history.append(obs)

@@ -38,7 +38,6 @@ def plot_forecast(train, test, variable_name, model_name, folder_name, predictio
     ax.plot(test.index, test['Value'], 
             label='Test (Real)', color=COLORS.get('test', 'blue'), marker='.', linewidth=2)
     
-    # Connetti ultimo valore train con primo valore test
     last_train_idx = train.index[-1]
     last_train_val = train['Value'].iloc[-1]
     first_test_idx = test.index[0]
@@ -48,13 +47,11 @@ def plot_forecast(train, test, variable_name, model_name, folder_name, predictio
     
     if baseline is not None:
         y_vals = baseline if isinstance(baseline, (pd.Series, list, np.ndarray)) else baseline
-        
         ax.plot(test.index, y_vals, 
                 linestyle=LINE_STYLES.get('baseline', '--'), 
-                label=f'{baseline_name}', 
+                label=f'Baseline ({baseline_name})', 
                 color=COLORS.get('baseline', 'gray'), alpha=0.8)
         
-        # Connetti ultimo valore train con prima predizione baseline
         first_baseline_val = y_vals[0] if isinstance(y_vals, (list, np.ndarray)) else y_vals.iloc[0]
         ax.plot([last_train_idx, first_test_idx], [last_train_val, first_baseline_val], 
                 linestyle=LINE_STYLES.get('baseline', '--'), 
@@ -62,13 +59,11 @@ def plot_forecast(train, test, variable_name, model_name, folder_name, predictio
 
     if prediction is not None:
         y_vals = prediction if isinstance(prediction, (pd.Series, list, np.ndarray)) else prediction
-        
         ax.plot(test.index, y_vals, 
                 linestyle=LINE_STYLES.get('pred', '--'), 
                 label=f'Pred ({model_name})', 
                 color=COLORS.get('pred', 'red'), linewidth=2)
         
-        # Connetti ultimo valore train con prima predizione
         first_pred_val = y_vals[0] if isinstance(y_vals, (list, np.ndarray)) else y_vals.iloc[0]
         ax.plot([last_train_idx, first_test_idx], [last_train_val, first_pred_val], 
                 linestyle=LINE_STYLES.get('pred', '--'), 
@@ -101,18 +96,20 @@ def plot_forecast(train, test, variable_name, model_name, folder_name, predictio
     plt.show()
     plt.close()
 
-def plot_future_forecasts(history_series, future_df, variable_name, model_name, folder_name, save_plots=True):
+def plot_future_forecasts(full_history, future_pred, baseline_pred, variable_name, model_name, baseline_name, folder_name, save_plots=True):
     """
     Plotta la serie storica completa e la proiezione futura (2025-2030).
     
     Args:
-        history_series (pd.Series): La serie completa dei dati storici (fino al 2024).
-        future_df (pd.DataFrame): DataFrame con colonne ['year', 'pred'] e opzionalmente ['lower_ci', 'upper_ci'].
-        variable_name (str): Nome dell'indicatore.
-        model_name (str): Nome del modello.
+        full_history (pd.Series): complete serie of historical data.
+        future_pred (pd.DataFrame): DataFrame containing ['year', 'pred'] columns and optionally ['lower_ci', 'upper_ci'].
+        baseline_pred (pd.DataFrame):
+        variable_name (str): indicator name.
+        model_name (str): name of the model of the future predictions.
+        baseline_name (str):
         folder_name (str): name of the folder where plots will be saved.
     """
-    if future_df is None or future_df.empty:
+    if future_pred is None or future_pred.empty:
         print(f"Skipping future plot for {variable_name}: No future data.")
         return
 
@@ -120,27 +117,32 @@ def plot_future_forecasts(history_series, future_df, variable_name, model_name, 
 
     plt.figure(figsize=(12, 6))
     
-    if hasattr(history_series.index, 'year'): x_hist = history_series.index.year
-    else: x_hist = history_series.index
+    if hasattr(full_history.index, 'year'): x_hist = full_history.index.year
+    else: x_hist = full_history.index
         
-    plt.plot(x_hist, history_series.values, label='Historical Data', color=COLORS.get('train', 'black'), marker='.', linewidth=2)
+    plt.plot(x_hist, full_history.values, label='Historical Data', color=COLORS.get('train', 'black'), marker='.', linewidth=2)
     
     last_year = x_hist.max()
-    last_val = history_series.values[-1]
+    last_val = full_history.values[-1]
     
-    connect_x = [last_year, future_df['year'].iloc[0]]
-    connect_y = [last_val, future_df['pred'].iloc[0]]
-    plt.plot(connect_x, connect_y, color=COLORS.get('pred_model', 'red'), linestyle='--', linewidth=2)
-
-    plt.plot(future_df['year'], future_df['pred'], label=f'Forecast {model_name}', 
+    connect_x_future = [last_year, future_pred['year'].iloc[0]]
+    connect_y_future = [last_val, future_pred['pred'].iloc[0]]
+    plt.plot(connect_x_future, connect_y_future, color=COLORS.get('pred_model', 'red'), linestyle='--', linewidth=2)
+    plt.plot(future_pred['year'], future_pred['pred'], label=f'Forecast {model_name}', 
             color=COLORS.get('pred_model', 'red'), linestyle='--', linewidth=2, markersize=4)
     
+    connect_x_baseline = [last_year, baseline_pred['year'].iloc[0]]
+    connect_y_baseline = [last_val, baseline_pred['pred'].iloc[0]]
+    plt.plot(connect_x_baseline, connect_y_baseline, color=COLORS.get('baseline', 'grey'), linestyle='--', linewidth=2)
+    plt.plot(baseline_pred['year'], baseline_pred['pred'], label=f'Baseline ({baseline_name})', 
+            color=COLORS.get('baseline', 'grey'), linestyle='--', linewidth=2, markersize=4)
+    
     # Intervallo di Confidenza (Se esiste)
-    if 'lower_ci' in future_df.columns and 'upper_ci' in future_df.columns:
+    if 'lower_ci' in future_pred.columns and 'upper_ci' in future_pred.columns:
         plt.fill_between(
-            future_df['year'], 
-            future_df['lower_ci'], 
-            future_df['upper_ci'], 
+            future_pred['year'], 
+            future_pred['lower_ci'], 
+            future_pred['upper_ci'], 
             color=COLORS.get('pred_model', 'red'), alpha=0.15, label='95% Confidence Interval'
         )
     

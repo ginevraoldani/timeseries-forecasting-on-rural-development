@@ -96,8 +96,26 @@ def _report_test_predictions(base_info, years, y_true, y_pred):
 
 def _report_future_forecasts(base_info, future_df):
     if future_df is None or future_df.empty: return
-    df = future_df.copy()
-    rename_map = {'Year': 'year', 'Pred': 'y_pred', 'Lower': 'lower_ci', 'Upper': 'upper_ci', 'lower': 'lower_ci', 'upper': 'upper_ci', 'pred': 'y_pred'}
+    if isinstance(future_df, pd.Series):
+        # Assumiamo che il nome della series sia la predizione
+        # e l'indice sia l'anno (se è un DatetimeIndex, estraiamo l'anno)
+        df = future_df.to_frame(name='y_pred')
+        if hasattr(df.index, 'year'):
+            df['year'] = df.index.year
+        else:
+            df['year'] = df.index
+        df.reset_index(drop=True, inplace=True)
+    else:
+        df = future_df.copy()
+    rename_map = {
+        'Year': 'year',
+        'Pred': 'y_pred',
+        'Lower': 'lower_ci',
+        'Upper': 'upper_ci',
+        'lower': 'lower_ci',
+        'upper': 'upper_ci',
+        'pred': 'y_pred'
+    }
     df = df.rename(columns=rename_map)
     for k, v in base_info.items(): df[k] = v
     
@@ -108,15 +126,22 @@ def _report_future_forecasts(base_info, future_df):
 
 # --- MAIN ---
 
-def save_experiment_results(indicator, model_name, configuration, y_test, y_pred, years_test, y_train=None, params=None, training_time=None, future_predictions=None):
+def save_experiment_results(indicator, model_name, configuration, y_test=None, y_pred=None, years_test=None, y_train=None, params=None, training_time=None, future_predictions=None):
     base_info = {"indicator": indicator, "model": model_name, "configuration": configuration}
     print(f"Saving results for {model_name} | {indicator}...")
     try:
         _report_params(base_info, params)
-        _report_performance(base_info, y_test, y_pred, training_time)
-        _report_residuals(base_info, y_test, y_pred)
-        if len(years_test) == len(y_pred):
-            _report_test_predictions(base_info, years_test, y_test, y_pred)
+        
+        has_test_data = False
+        if hasattr(y_test, '__len__'):
+            if len(y_test) > 0:
+                has_test_data = True
+                
+        if has_test_data:
+            _report_performance(base_info, y_test, y_pred, training_time)
+            _report_residuals(base_info, y_test, y_pred)
+            if len(years_test) == len(y_pred):
+                _report_test_predictions(base_info, years_test, y_test, y_pred)
         if future_predictions is not None:
             _report_future_forecasts(base_info, future_predictions)
         print("Save complete.")

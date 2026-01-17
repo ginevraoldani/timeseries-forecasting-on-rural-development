@@ -8,7 +8,5 @@ from .preprocessing import (
 )
 from .differentiation import (
     test_stationarity,
-    find_integration_order,
-    difference_series,
-    inverse_difference_series,
+    find_integration_order
 )

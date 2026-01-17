@@ -125,7 +125,5 @@ def plot_sanity_check(df, folder_name="00_DIFFCHECK", save_plots=True):
         filename = f"DIFFCHECK_{col}.png"
         save_path = os.path.join(save_folder, filename)
         plt.savefig(save_path)
-        
-        plt.show()
         plt.close()
         print(f"Check plot saved: {save_path}")
