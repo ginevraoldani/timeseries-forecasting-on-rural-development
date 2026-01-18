@@ -27,6 +27,7 @@ h5py==3.15.1
 holidays==0.84
 idna==3.11
 importlib_resources==6.5.2
+-e git+https://github.com/ginevraoldani/timeseries-forecasting-on-rural-development.git@bdbc01117d5ea91f9e14bd1a0b152c979e2169b8#egg=internship_project
 ipykernel==7.1.0
 ipython==9.7.0
 ipython_pygments_lexers==1.1.1
@@ -50,11 +51,12 @@ ml_dtypes==0.5.4
 namex==0.1.0
 narwhals==2.11.0
 nest-asyncio==1.6.0
-numpy==2.3.4
+numpy==1.26.4
 openpyxl==3.1.5
 opt_einsum==3.4.0
 optree==0.18.0
 optuna==4.6.0
+optuna-integration==4.6.0
 packaging==25.0
 pandas==2.3.3
 parso==0.8.5
@@ -81,6 +83,7 @@ requests==2.32.5
 rich==14.2.0
 scikit-learn==1.7.2
 scipy==1.16.3
+seaborn==0.13.2
 setuptools==80.9.0
 six==1.17.0
 SQLAlchemy==2.0.44

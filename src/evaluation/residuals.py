@@ -18,7 +18,7 @@ from statsmodels.stats.diagnostic import acorr_ljungbox
 # speriamo che errori siano casuali, random, non vogliamo che abbiano pattern nascosti che non sono stati catturati dal modello.
 #       -> H0 : dati sono casuali (no autocorrelazione),
 #       p < 0.05 : rifiuto ipotesi = c'è autocorrelazione (modello è incompleto o migliorabile)
-#    !! p > 0.05 : accetto ipotesti = residui sono rumore bianco
+#    !! p > 0.05 : accetto ipotesi = residui sono rumore bianco
 
 def compute_residual_diagnostics(y_true, y_pred):
     """

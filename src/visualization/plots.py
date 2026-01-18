@@ -1,14 +1,17 @@
-import numpy as np
+import matplotlib
 import matplotlib.pyplot as plt
-import os
+import matplotlib.dates as mdates
+import numpy as np
 import pandas as pd
+import os
+import scipy.stats as stats
 from statsmodels.graphics.tsaplots import plot_acf
 import statsmodels.api as sm
-import scipy.stats as stats
 import textwrap
-import matplotlib.dates as mdates
+import seaborn as sns
 from src.config import set_path, set_filename
 from src.config import COLORS, SAFE_VAR_NAMES, REVERSE_VAR_NAMES, PLOTS_DIR, LINE_STYLES, PLOT_CONFIG
+matplotlib.use('Agg') # Backend non-interattivo super veloce
 
 plt.rcParams.update(PLOT_CONFIG)
 
@@ -92,9 +95,9 @@ def plot_forecast(train, test, variable_name, model_name, folder_name, predictio
             print(f"Plot saved: {full_path}")
         except Exception as e:
             print(f"Error saving plot: {e}")
-            
-    plt.show()
     plt.close()
+
+# ========================================================================================================
 
 def plot_future_forecasts(full_history, future_pred, baseline_pred, variable_name, model_name, baseline_name, folder_name, save_plots=True):
     """
@@ -112,7 +115,6 @@ def plot_future_forecasts(full_history, future_pred, baseline_pred, variable_nam
     if future_pred is None or future_pred.empty:
         print(f"Skipping future plot for {variable_name}: No future data.")
         return
-
     save_folder = set_path(folder_name, PLOTS_DIR)
 
     plt.figure(figsize=(12, 6))
@@ -162,9 +164,9 @@ def plot_future_forecasts(full_history, future_pred, baseline_pred, variable_nam
         full_path = os.path.join(save_folder, filename)
         plt.savefig(full_path, dpi=300, bbox_inches='tight')
         print(f"Future Plot saved: {full_path}")
-        
-    plt.show()
     plt.close()
+
+# ========================================================================================================
 
 def plot_baseline_comparison(train, test, future_years, predictions_dict, variable_name, save_plot=True):
     """
@@ -219,10 +221,9 @@ def plot_baseline_comparison(train, test, future_years, predictions_dict, variab
     if save_plot:
         filename = f"COMPARE_{variable_name}.png"
         plt.savefig(os.path.join(save_folder, filename), dpi=300)
-        
-    plt.show()
     plt.close()
 
+# ========================================================================================================
 
 def plot_augmented(variable_name, df_step, df_jitter, x_train_vals, y_train_vals):
     """ plots original time series 
@@ -249,56 +250,59 @@ def plot_augmented(variable_name, df_step, df_jitter, x_train_vals, y_train_vals
     full_path = os.path.join(save_folder, filename)
     plt.savefig(full_path, dpi=300, bbox_inches='tight')
     print(f"Grafico salvato in: {full_path}")
-    plt.show()
     plt.close()
 
-def plot_residuals(residuals, model_name, variable_name):
+# ========================================================================================================
+
+def plot_residuals(y_true, y_pred, variable_name, model_name, folder_name, save_plots=True):
     """
-    Prende un array di residui e genera la dashboard diagnostica (Line, Hist, ACF).
-    Salva automaticamente usando la logica interna.
+    Versione ottimizzata ad alta velocità per l'analisi dei residui.
+    Usa solo Matplotlib puro (niente Seaborn) per massimizzare le performance.
     """
-    save_folder = set_path("RESIDUALS", PLOTS_DIR)
-    fig = plt.figure(figsize=(10, 8))
-    layout = (2, 2)
-    ax1 = plt.subplot2grid(layout, (0, 0), colspan=2)
-    ax2 = plt.subplot2grid(layout, (1, 0))
-    ax3 = plt.subplot2grid(layout, (1, 1))
+    if y_true is None or y_pred is None or len(y_true) == 0: return
+    save_folder = set_path(folder_name, PLOTS_DIR)
+    residuals = np.array(y_true) - np.array(y_pred)
+
+    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+    fig.suptitle(f'Resid: {variable_name}', fontsize=12, fontweight='bold')
+
+    # 1. Residuals over Time (Plot semplice)
+    axes[0].plot(residuals, color='purple', linewidth=1)
+    axes[0].axhline(0, color='black', linestyle='--', linewidth=0.8)
+    axes[0].set_title("Time Plot")
+    axes[0].set_ylabel("Error")
+    axes[0].grid(True, alpha=0.3)
+
+    # 2. Distribution (Istogramma Matplotlib puro invece di Seaborn)
+    # density=True normalizza per confrontare con la curva normale
+    axes[1].hist(residuals, bins=10, density=True, color='purple', alpha=0.6, edgecolor='black')
     
-    # Residui nel tempo
-    ax1.plot(residuals, color='purple', linewidth=1.5)
-    ax1.axhline(0, color='black', linestyle='--', linewidth=1)
-    ax1.set_title(f'Residuals: {variable_name} ({model_name})')
-    ax1.grid(True, alpha=0.3)
-    
-    # Istogramma
-    ax2.hist(residuals, bins=15, color='gray', edgecolor='black', alpha=0.7, density=True)
-    ax2.set_title('Distribution')
-    
-    # Curva normale teorica
-    xmin, xmax = ax2.get_xlim()
+    # Sovrapposizione Normale (Calcolo veloce vettoriale)
+    mu, std = stats.norm.fit(residuals)
+    xmin, xmax = axes[1].get_xlim()
     x = np.linspace(xmin, xmax, 100)
-    p = stats.norm.pdf(x, np.mean(residuals), np.std(residuals))
-    ax2.plot(x, p, 'k', linewidth=2, label='Normal')
-    ax2.legend()
-    
-    # ACF Plot
-    # Gestione errori se i residui sono troppo pochi per l'ACF
-    if len(residuals) > 2:
-        lags = min(10, len(residuals)//2 - 1)
-        sm.graphics.tsa.plot_acf(residuals, ax=ax3, lags=lags, zero=False)
-        ax3.set_title('Autocorrelation (ACF)')
+    p = stats.norm.pdf(x, mu, std)
+    axes[1].plot(x, p, 'k', linewidth=2, label='Norm')
+    axes[1].set_title(f"Dist (Mean={mu:.2f})")
+    axes[1].legend(loc='upper right', fontsize='small')
+
+    # 3. ACF (Limitiamo i lags per evitare calcoli inutili)
+    # fft=True usa la trasformata di Fourier veloce
+    lags_to_show = min(15, len(residuals)//2 - 1)
+    if lags_to_show > 1:
+        plot_acf(residuals, ax=axes[2], lags=lags_to_show, title="ACF", fft=True, zero=False)
     else:
-        ax3.text(0.5, 0.5, "Insufficient data for ACF", ha='center')
-        
-    filename = set_filename(variable_name, model_name)
-    full_path = os.path.join(save_folder, filename)
-    try:
-        plt.savefig(full_path, dpi=300, bbox_inches='tight')
-        print(f"Grafico salvato in: {full_path}")
-    except Exception as e:
-        print(f"errore salvataggio: {e}")
+        axes[2].text(0.5, 0.5, "Not enough data for ACF", ha='center')
+
     plt.tight_layout()
+    if save_plots:
+        filename = set_filename(variable_name, f"resid{model_name}")
+        full_path = os.path.join(save_folder, filename)
+        plt.savefig(full_path, dpi=300, bbox_inches='tight')
+        print(f"Residuals saved: {full_path}")
     plt.close()
+
+# ========================================================================================================
 
 def plot_shallow_nn_preds(variable_name, results_dict, orig_aug_subsets, model_name):
     """
@@ -363,8 +367,9 @@ def plot_shallow_nn_preds(variable_name, results_dict, orig_aug_subsets, model_n
     full_path = os.path.join(save_folder, filename)
     plt.savefig(full_path, dpi=300, bbox_inches='tight')
     print(f"Grafico salvato in: {full_path}")
-    plt.show()
     plt.close()
+
+# ========================================================================================================
 
 def plot_nn_preds(variable_name, predictions_dict, train_df, val_df, test_df, model_name):
     save_folder = os.path.join(PLOTS_DIR, str(model_name))
@@ -453,5 +458,4 @@ def plot_nn_preds(variable_name, predictions_dict, train_df, val_df, test_df, mo
         print(f"Grafico salvato in: {full_path}")
     except Exception as e:
         print(f"errore salvataggio: {e}")
-    plt.show()
     plt.close()
