@@ -12,15 +12,12 @@ SRC_DIR = os.path.join(PROJECT_ROOT, "src")
 # path directory specifiche di salvataggio risultati
 PLOTS_DIR = os.path.join(RESULTS_DIR, "plots")
 LOGS_DIR = os.path.join(RESULTS_DIR, "logs")
-ERRORS_DIR = os.path.join(RESULTS_DIR, "errors")
 MODELS_DIR = os.path.join(RESULTS_DIR, "saved_models")
 
 # path file specifici da aggiornare durante esecuzione modelli
 RAW_DATA_FILE = os.path.join(DATA_DIR, "processed_italy_data.xlsx")
 INTEGRATION_FILE = os.path.join(RESULTS_DIR, "integration_orders.xlsx")
-PERFORMANCE_FILE = os.path.join(ERRORS_DIR, "performance_metrics.xlsx")
-PARAMS_FILE = os.path.join(LOGS_DIR, "model_params.xlsx")
-RESIDUALS_FILE = os.path.join(ERRORS_DIR, "residuals_diagnostics.xlsx")
+LEADERBOARD_FILE = os.path.join(RESULTS_DIR, "leaderboard.xlsx")
 PREDICTIONS_TEST_FILE = os.path.join(LOGS_DIR, "predictions_test.xlsx")
 PREDICTIONS_FUTURE_FILE = os.path.join(LOGS_DIR, "predictions_future.xlsx")
 
