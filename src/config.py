@@ -18,8 +18,6 @@ MODELS_DIR = os.path.join(RESULTS_DIR, "saved_models")
 RAW_DATA_FILE = os.path.join(DATA_DIR, "processed_italy_data.xlsx")
 INTEGRATION_FILE = os.path.join(RESULTS_DIR, "integration_orders.xlsx")
 LEADERBOARD_FILE = os.path.join(RESULTS_DIR, "leaderboard.xlsx")
-PREDICTIONS_TEST_FILE = os.path.join(LOGS_DIR, "predictions_test.xlsx")
-PREDICTIONS_FUTURE_FILE = os.path.join(LOGS_DIR, "predictions_future.xlsx")
 
 # nomi indicatori inusabili
 UNUSABLE = [
@@ -112,13 +110,14 @@ COLORS = {
     'pred_jitter':    '#ea580c'
 }
 
-
 LINE_STYLES = {
     'real':     '-',
     'baseline': ':',
     'pred':     '--',
     'aug':      '-.'
 }
+
+# LINE_STYLES = ['--', '-.', ':', (0, (3, 1, 1, 1)), (0, (5, 10))]
 
 PLOT_CONFIG = {
     'figure.figsize': (12, 6),

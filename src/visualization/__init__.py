@@ -10,5 +10,7 @@ from .plots import (
 
 from .exploratory import (
     plot_exploratory_time_series,
+    plot_baseline_comparison,
+    plot_future_baseline_comparison,
     plot_sanity_check
 )

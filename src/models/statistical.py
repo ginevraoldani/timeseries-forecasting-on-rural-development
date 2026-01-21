@@ -17,8 +17,6 @@ def predict_arima_rolling(train_data, test_data, order, refit=True):
     Returns:
         pd.Series: Le predizioni one-step-ahead allineate con l'indice di test_data.
     """
-    # Preparazione dello storico (History)
-    # Convertiamo in lista per appendere velocemente i nuovi valori
     history = [x for x in train_data.values] if hasattr(train_data, 'values') else list(train_data)
     test_values = test_data.values if hasattr(test_data, 'values') else list(test_data)
     forecast_index = test_data.index
@@ -32,22 +30,15 @@ def predict_arima_rolling(train_data, test_data, order, refit=True):
             if refit:
                 model_fit = model.fit()
             else:
-                # Opzione avanzata: usa i parametri del primo fit (più veloce, meno preciso se il trend cambia)
-                # Per la tesi, consiglio di lasciare refit=True o usare model_fit.append/apply
-                # Qui per semplicità rimaniamo sul refit=True nel 99% dei casi
                 model_fit = model.fit() 
 
-            # Predizione 1 step avanti (t+1)
-            # forecast() restituisce un array, prendiamo il primo elemento
             yhat = model_fit.forecast()[0]
             predictions.append(yhat)
             
-            # Aggiornamento Storia (Observation)
             # Aggiungiamo il VERO valore osservato alla storia per il prossimo giro
             obs = test_values[t]
             history.append(obs)
             
-        # Creazione Serie Finale
         forecast_series = pd.Series(predictions, index=forecast_index, name='pred')
         return forecast_series
 

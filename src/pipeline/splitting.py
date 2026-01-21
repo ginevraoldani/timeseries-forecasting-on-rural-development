@@ -14,25 +14,17 @@ def split_train_test(df, col_name, train_ratio=0.8):
             Returns (None, None) if data is insufficient/empty.
     """
     series = df[col_name].dropna()
-    
     if series.empty:
         print(f"Skipping {col_name}: no data")
         return None, None
     
     n_samples = len(series)
-    
     split_idx = int(n_samples * train_ratio)
-    
-    # Check if split is valid (need at least 1 point for train and 1 for test)
     if split_idx == 0 or split_idx >= n_samples:
         print(f"Skipping {col_name}: insufficient data for split (n={n_samples})")
         return None, None
-    
-    # Perform Split and Standardize to DataFrame
-    # Using .iloc for positional splitting on sorted time series
     train = series.iloc[:split_idx].to_frame(name='Value')
     test = series.iloc[split_idx:].to_frame(name='Value')
-    
     return train, test
 
 def split_train_val_test(df):

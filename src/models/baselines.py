@@ -73,10 +73,8 @@ def predict_seasonal_naive(train_data, forecast_index, season_length=3):
                 indexed by forecast_index and named 'pred'.
     """
     series = train_data.iloc[:, 0] if isinstance(train_data, pd.DataFrame) else train_data
-    
     last_season = series.iloc[-season_length:].values
     
-    # Creiamo una lista ripetendo l'ultimo ciclo fino a coprire tutto l'orizzonte
     n_required = len(forecast_index)
     repetitions = int(np.ceil(n_required / season_length))
     forecast_values = np.tile(last_season, repetitions)[:n_required]
@@ -104,19 +102,12 @@ def predict_random_walk_drift(train_data, forecast_index, **kwargs):
         pd.Series: forecast series with values following the linear trend,
                 indexed by forecast_index and named 'pred'.
     """
-    
     series = train_data.iloc[:, 0] if isinstance(train_data, pd.DataFrame) else train_data
-    
-    # 1. Calcolo del Drift (Pendenza media)
-    # Drift = (Ultimo Valore - Primo Valore) / (Numero passi - 1)
-    y_T = series.iloc[-1]  # Ultimo
-    y_1 = series.iloc[0]   # Primo
+    y_T = series.iloc[-1]
+    y_1 = series.iloc[0]
     T = len(series)
     
     slope = (y_T - y_1) / (T - 1)
-    
-    # 2. Generazione Previsione
-    # Predizione h passi avanti = Ultimo Valore + (h * slope)
     preds = []
     for h in range(1, len(forecast_index) + 1):
         preds.append(y_T + (h * slope))
@@ -132,7 +123,7 @@ BASELINE_MODELS = {
     'mean': predict_historical_mean,
     'naive': predict_random_walk,
     'drift': predict_random_walk_drift,
-    'seasonal': predict_seasonal_naive
+    'season': predict_seasonal_naive
 }
 
 def get_baseline_prediction(method_name, train_data, forecast_index):

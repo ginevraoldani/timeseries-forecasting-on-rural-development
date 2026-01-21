@@ -11,8 +11,7 @@ import textwrap
 import seaborn as sns
 from src.config import set_path, set_filename
 from src.config import COLORS, SAFE_VAR_NAMES, REVERSE_VAR_NAMES, PLOTS_DIR, LINE_STYLES, PLOT_CONFIG
-matplotlib.use('Agg') # Backend non-interattivo super veloce
-
+matplotlib.use('Agg')
 plt.rcParams.update(PLOT_CONFIG)
 
 def plot_forecast(train, test, variable_name, model_name, folder_name, prediction=None, baseline=None, baseline_name="Baseline", rmse=None, save_plot=True):
