@@ -253,6 +253,52 @@ def plot_augmented(variable_name, df_step, df_jitter, x_train_vals, y_train_vals
 
 # ========================================================================================================
 
+# mae_last = mean_absolute_error(test_data['Value'], test_data['pred_last_value'])
+# mae_arimax = mean_absolute_error(test_data['Value'], test_data['pred_ARIMAX'])
+
+# mse_last = mean_squared_error(test_data['Value'], test_data['pred_last_value'])
+# mse_arimax = mean_squared_error(test_data['Value'], test_data['pred_ARIMAX'])
+
+# print(f"Metriche di errore per {target}:")
+# print(f"  MAE -> Last Value: {mae_last:.5f}, ARIMAX{order}: {mae_arimax:.5f}")
+# print(f"  MSE -> Last Value: {mse_last:.5f}, ARIMAX{order}: {mse_arimax:.5f}")
+
+# results_metrics = pd.DataFrame({
+#     'Method': ['Last Value', f'ARIMAX{order}'],
+#     'MSE': [mse_last, mse_arimax],
+#     'MAE': [mae_last, mae_arimax]
+# })
+
+# fig, ax = plt.subplots(figsize=(8, 5))
+# x = np.arange(len(results_metrics['Method']))
+# width = 0.35
+
+# bar1 = ax.bar(x - width/2, results_metrics['MSE'], width, label='MSE')
+# bar2 = ax.bar(x + width/2, results_metrics['MAE'], width, label='MAE')
+
+# ax.set_xticks(x)
+# ax.set_xticklabels(results_metrics['Method'])
+# ax.set_title(f"Error on predictions for {target}")
+# ax.set_ylabel("Error Value")
+# ax.legend()
+# ax.grid(alpha=0.3, axis='y')
+
+# def add_labels(bars):
+#     for bar in bars:
+#         height = bar.get_height()
+#         ax.annotate(f'{height:.5f}',
+#                     xy=(bar.get_x() + bar.get_width() / 2, height),
+#                     xytext=(0, 3),
+#                     textcoords="offset points",
+#                     ha='center', va='bottom', fontsize=9)
+
+# add_labels(bar1)
+# add_labels(bar2)
+
+# plt.tight_layout()
+# plt.show()
+
+
 def plot_residuals(y_true, y_pred, variable_name, model_name, folder_name, save_plots=True):
     """
     Versione ottimizzata ad alta velocità per l'analisi dei residui.

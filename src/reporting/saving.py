@@ -26,7 +26,10 @@ def update_leaderboard(indicator, model_name, metrics, filepath=LEADERBOARD_FILE
 
     for key, value in metrics.items():
         col_name = f"{model_name}_{key}"
-        df.loc[indicator, col_name] = value
+        if isinstance(value, (list, tuple)):
+            df.loc[indicator, col_name] = str(value)
+        else:
+            df.loc[indicator, col_name] = value
 
     df = df.reindex(sorted(df.columns), axis=1)
     try:
