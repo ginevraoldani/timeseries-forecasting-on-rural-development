@@ -10,9 +10,8 @@ import statsmodels.api as sm
 import textwrap
 import seaborn as sns
 from src.config import set_path, set_filename
-from src.config import COLORS, SAFE_VAR_NAMES, REVERSE_VAR_NAMES, PLOTS_DIR, LINE_STYLES, PLOT_CONFIG
+from src.config import COLORS, SAFE_VAR_NAMES, REVERSE_VAR_NAMES, PLOTS_DIR, LINE_STYLES
 matplotlib.use('Agg')
-plt.rcParams.update(PLOT_CONFIG)
 
 def plot_forecast(train, test, variable_name, model_name, folder_name, prediction=None, baseline=None, baseline_name="Baseline", rmse=None, save_plot=True):
     """
@@ -31,33 +30,34 @@ def plot_forecast(train, test, variable_name, model_name, folder_name, predictio
         rmse (float, optional): RMSE value to display in the title.
         save_plot (bool): whether to save the figure to disk.
     """
+    
     save_folder = set_path(folder_name, PLOTS_DIR)
     fig, ax = plt.subplots(figsize=(12, 6))
     
     ax.plot(train.index, train['Value'], 
-            label='Train', color=COLORS.get('train', 'black'), marker='.', linewidth=2)
+            label='Train', color=COLORS.get('train', 'grey'), marker='.', linewidth=2)
     
     ax.plot(test.index, test['Value'], 
-            label='Test (Real)', color=COLORS.get('test', 'blue'), marker='.', linewidth=2)
+            label='Test (Real)', color=COLORS.get('test_real', 'black'), marker='.', linewidth=2)
     
     last_train_idx = train.index[-1]
     last_train_val = train['Value'].iloc[-1]
     first_test_idx = test.index[0]
     first_test_val = test['Value'].iloc[0]
     ax.plot([last_train_idx, first_test_idx], [last_train_val, first_test_val], 
-            color=COLORS.get('test', 'blue'), linewidth=2)
+            color=COLORS.get('test_real', 'black'), linewidth=2)
     
     if baseline is not None:
         y_vals = baseline if isinstance(baseline, (pd.Series, list, np.ndarray)) else baseline
         ax.plot(test.index, y_vals, 
                 linestyle=LINE_STYLES.get('baseline', '--'), 
                 label=f'Baseline ({baseline_name})', 
-                color=COLORS.get('baseline', 'gray'), alpha=0.8)
+                color=COLORS.get('baseline', 'gray'))
         
         first_baseline_val = y_vals[0] if isinstance(y_vals, (list, np.ndarray)) else y_vals.iloc[0]
         ax.plot([last_train_idx, first_test_idx], [last_train_val, first_baseline_val], 
                 linestyle=LINE_STYLES.get('baseline', '--'), 
-                color=COLORS.get('baseline', 'gray'), alpha=0.8)
+                color=COLORS.get('baseline', 'gray'))
 
     if prediction is not None:
         y_vals = prediction if isinstance(prediction, (pd.Series, list, np.ndarray)) else prediction
@@ -71,7 +71,7 @@ def plot_forecast(train, test, variable_name, model_name, folder_name, predictio
                 linestyle=LINE_STYLES.get('pred', '--'), 
                 color=COLORS.get('pred', 'red'), linewidth=2)
 
-    ax.axvspan(train.index.max(), test.index.max(), color='#d3d3d3', alpha=0.2)
+    ax.axvspan(train.index.max(), test.index.max(), color='#C3C3C3', alpha=0.3)
 
     long_name = REVERSE_VAR_NAMES.get(variable_name, variable_name)
     title_text = f"{model_name} Forecast: {long_name}"
@@ -84,7 +84,7 @@ def plot_forecast(train, test, variable_name, model_name, folder_name, predictio
     ax.set_xlabel("Year")
     
     ax.legend(loc='best')
-    ax.grid(True, linestyle='--', alpha=0.4)
+    ax.grid(True, linestyle='--', alpha=0.3)
     
     if save_plot:
         filename = set_filename(variable_name, model_name)
@@ -121,7 +121,7 @@ def plot_future_forecasts(full_history, future_pred, baseline_pred, variable_nam
     if hasattr(full_history.index, 'year'): x_hist = full_history.index.year
     else: x_hist = full_history.index
         
-    plt.plot(x_hist, full_history.values, label='Historical Data', color=COLORS.get('train', 'black'), marker='.', linewidth=2)
+    plt.plot(x_hist, full_history.values, label='History', color=COLORS.get('train', 'black'), marker='.', linewidth=2)
     
     last_year = x_hist.max()
     last_val = full_history.values[-1]
@@ -147,7 +147,7 @@ def plot_future_forecasts(full_history, future_pred, baseline_pred, variable_nam
             color=COLORS.get('pred_model', 'red'), alpha=0.15, label='95% Confidence Interval'
         )
     
-    plt.axvspan(last_year, 2030, color='#d3d3d3', alpha=0.2)
+    plt.axvspan(last_year, 2030, color='#C3C3C3', alpha=0.3)
     
     long_name = REVERSE_VAR_NAMES.get(variable_name, variable_name)
     title_text = f"Future Forecast ({last_year}-2030): {long_name}"
@@ -156,70 +156,13 @@ def plot_future_forecasts(full_history, future_pred, baseline_pred, variable_nam
     plt.xlabel("Year")
     plt.ylabel("Value")
     plt.legend(loc='best')
-    plt.grid(True, linestyle='--', alpha=0.4)
+    plt.grid(True, linestyle='--', alpha=0.3)
     
     if save_plots:
         filename = set_filename(variable_name, f"future{model_name}")
         full_path = os.path.join(save_folder, filename)
         plt.savefig(full_path, dpi=300, bbox_inches='tight')
         print(f"Future Plot saved: {full_path}")
-    plt.close()
-
-# ========================================================================================================
-
-def plot_baseline_comparison(train, test, future_years, predictions_dict, variable_name, save_plot=True):
-    """
-    Plotta: Storia + Test Reale + Predizioni Test (vari modelli) + Futuro (vari modelli).
-    """
-    # Setup
-    folder_name = "00_Baselines_Comparison"
-    save_folder = set_path(folder_name, PLOTS_DIR) # Assicurati che PLOTS_DIR sia importato
-    
-    plt.figure(figsize=(14, 7))
-    
-    # 1. Dati Reali (Train e Test)
-    plt.plot(train.index.year, train['Value'], label='Train Data', color='black', linewidth=2)
-    plt.plot(test.index.year, test['Value'], label='Test Data (Ground Truth)', color='gray', linewidth=2, alpha=0.7)
-    
-    # Colori per i modelli
-    colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728'] # Blu, Arancio, Verde, Rosso
-    
-    # 2. Loop sui modelli (Dizionario: { 'NomeModello': (pred_test, pred_future) })
-    for i, (model_name, (pred_test, pred_future)) in enumerate(predictions_dict.items()):
-        color = colors[i % len(colors)]
-        
-        # A. Plot Test Prediction (Tratteggiato)
-        # Allineamento asse X
-        plt.plot(test.index.year, pred_test.values, 
-                label=f'{model_name} (Test)', 
-                color=color, linestyle='--', linewidth=1.5)
-        
-        # B. Plot Future Prediction (Punteggiato)
-        if pred_future is not None:
-            # Linea di connessione (Ultimo punto Test -> Primo Futuro) per continuità
-            connect_x = [test.index.year[-1], future_years[0]]
-            connect_y = [pred_test.values[-1], pred_future.values[0]]
-            plt.plot(connect_x, connect_y, color=color, linestyle=':', linewidth=1)
-            
-            # Plot vero e proprio
-            plt.plot(future_years, pred_future.values, 
-                    # label=f'{model_name} (2030)', # Non mettiamo label doppia per pulizia
-                    color=color, linestyle=':', linewidth=2, marker='.', markersize=4)
-
-    # 3. Formattazione
-    plt.axvline(x=test.index.year[0], color='gray', linestyle='-', alpha=0.3)
-    plt.axvline(x=future_years[0], color='black', linestyle='-', alpha=0.5, label='Future Start')
-    
-    plt.title(f"Baseline Models Comparison: {variable_name}", fontsize=14, fontweight='bold')
-    plt.xlabel("Year")
-    plt.ylabel("Value")
-    plt.legend(loc='upper left', bbox_to_anchor=(1, 1)) # Legenda fuori dal grafico
-    plt.grid(True, linestyle='--', alpha=0.3)
-    plt.tight_layout()
-    
-    if save_plot:
-        filename = f"COMPARE_{variable_name}.png"
-        plt.savefig(os.path.join(save_folder, filename), dpi=300)
     plt.close()
 
 # ========================================================================================================
@@ -309,10 +252,10 @@ def plot_residuals(y_true, y_pred, variable_name, model_name, folder_name, save_
     residuals = np.array(y_true) - np.array(y_pred)
 
     fig, axes = plt.subplots(1, 3, figsize=(15, 5))
-    fig.suptitle(f'Resid: {variable_name}', fontsize=12, fontweight='bold')
+    fig.suptitle(f'Resid: {variable_name}', fontsize=14, fontweight='bold')
 
     # 1. Residuals over Time (Plot semplice)
-    axes[0].plot(residuals, color='purple', linewidth=1)
+    axes[0].plot(residuals, color='purple', linewidth=2)
     axes[0].axhline(0, color='black', linestyle='--', linewidth=0.8)
     axes[0].set_title("Time Plot")
     axes[0].set_ylabel("Error")
@@ -397,7 +340,7 @@ def plot_shallow_nn_preds(variable_name, results_dict, orig_aug_subsets, model_n
     ax1.grid(True, alpha=0.3)
     test_start = int(test_years.min())
     test_end = int(test_years.max())
-    ax1.axvspan(test_start - 0.5, test_end + 0.5, color='#808080', alpha=0.2)
+    ax1.axvspan(test_start - 0.5, test_end + 0.5, color='#C3C3C3', alpha=0.3)
     
     ax2.set_title("Training Loss Convergence", fontsize=14)
     ax2.set_xlabel("Epochs")
@@ -406,7 +349,7 @@ def plot_shallow_nn_preds(variable_name, results_dict, orig_aug_subsets, model_n
     ax2.legend(loc='best')
     ax2.grid(True, alpha=0.3)
 
-    fig.suptitle(f'{model_name} Analysis: {variable_name}', fontsize=16, y=0.93, fontweight='bold')
+    fig.suptitle(f'{model_name} Analysis: {variable_name}', fontsize=14, y=0.93, fontweight='bold')
 
     filename = set_filename(variable_name, model_name)
     full_path = os.path.join(save_folder, filename)
@@ -467,7 +410,7 @@ def plot_nn_preds(variable_name, predictions_dict, train_df, val_df, test_df, mo
                 ax.tick_params(axis='x', which='both', labelbottom=True)
                 test_start = int(years_pred.min())
                 test_end = int(years_pred.max())
-                ax.axvspan(test_start, test_end, color='#808080', alpha=0.1)
+                ax.axvspan(test_start, test_end, color='#C3C3C3', alpha=0.3)
                 ax.plot(years_pred,
                         y_pred,
                         color=style.get('color', 'C0'),
@@ -481,7 +424,7 @@ def plot_nn_preds(variable_name, predictions_dict, train_df, val_df, test_df, mo
         ax.legend(loc='best')
         ax.grid(True, alpha=0.3)
         
-        fig.suptitle(f'{variable_name} - {model_name} predictions', fontsize=16, fontweight='bold', y=0.93)
+        fig.suptitle(f'{variable_name} - {model_name} predictions', fontsize=14, fontweight='bold', y=0.93)
         
     safe_var_name = SAFE_VAR_NAMES.get(variable_name, variable_name[:3])
     filename = f"{model_name}_{safe_var_name}.png"

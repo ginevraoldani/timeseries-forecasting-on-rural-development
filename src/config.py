@@ -101,7 +101,7 @@ def set_filename(variable_name, model_name):
 
 COLORS = {
     'train':        '#4a5568',
-    'test_real':    '#000000',
+    'test_real':    "#000000",
     'pred_baseline1': '#94a3b8',
     'pred_baseline2': '#64748b',
     'pred_model':     '#dc2626',
@@ -115,17 +115,6 @@ LINE_STYLES = {
     'baseline': ':',
     'pred':     '--',
     'aug':      '-.'
-}
-
-# LINE_STYLES = ['--', '-.', ':', (0, (3, 1, 1, 1)), (0, (5, 10))]
-
-PLOT_CONFIG = {
-    'figure.figsize': (12, 6),
-    'figure.dpi': 300,
-    'axes.grid': True,
-    'grid.alpha': 0.3,
-    'lines.linewidth': 2,
-    'font.size': 12
 }
 
 DEFAULT_BATCH_SIZE = 32

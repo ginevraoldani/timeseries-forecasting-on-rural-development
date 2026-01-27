@@ -5,10 +5,6 @@ import src.evaluation as eval
 from src.config import LEADERBOARD_FILE, INTEGRATION_FILE
 
 def update_leaderboard(indicator, model_name, metrics, filepath=LEADERBOARD_FILE):
-    """
-    Aggiorna la tabella comparativa (Leaderboard) salvando i risultati in orizzontale.
-    Gestisce automaticamente la creazione del file e dell'indice.
-    """
     os.makedirs(os.path.dirname(filepath), exist_ok=True)
     if os.path.exists(filepath):
         try:
@@ -30,19 +26,13 @@ def update_leaderboard(indicator, model_name, metrics, filepath=LEADERBOARD_FILE
             df.loc[indicator, col_name] = str(value)
         else:
             df.loc[indicator, col_name] = value
-
-    df = df.reindex(sorted(df.columns), axis=1)
     try:
         df.to_excel(filepath)
         print(f"Leaderboard updated: {indicator} | {model_name}")
     except PermissionError:
-        print(f"ERRORE CRITICO: Impossibile salvare {filepath}. Chiudi il file Excel!")
+        print(f"ERROR: close {filepath}.")
 
 def save_experiment_results(indicator, model_name, configuration, y_test, y_pred, years_test, y_train=None, params=None, training_time=None):
-    """
-    Funzione principale richiamata dai notebook.
-    Calcola le metriche e distribuisce i dati ai file corretti.
-    """
     print(f"Saving results for {model_name} | {indicator}...")
     try:
         all_metrics = {}
@@ -75,11 +65,6 @@ def save_experiment_results(indicator, model_name, configuration, y_test, y_pred
         traceback.print_exc()
 
 def save_master_config(df_config, filepath=INTEGRATION_FILE):
-    """
-    Salva il dataframe di configurazione (Integration Orders) in Excel.
-    Sovrascrive il file se esiste per garantire che la configurazione sia sempre
-    l'ultima versione calcolata.
-    """
     os.makedirs(os.path.dirname(filepath), exist_ok=True)
     try:
         df_config.to_excel(filepath)

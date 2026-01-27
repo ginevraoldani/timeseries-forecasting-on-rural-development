@@ -53,6 +53,39 @@ def predict_random_walk(train_data, forecast_index, **kwargs):
         index=forecast_index,
         name='pred'
     )
+    
+def predict_random_walk_drift(train_data, forecast_index, **kwargs):
+    """
+    Random Walk with Drift: Projects future values using a linear trend based on historical drift.
+    
+    This baseline method calculates the average slope (drift) from the first to the last observation
+    and uses it to extrapolate future values. It is suitable for non-stationary series with a 
+    consistent trend.
+    
+    Args:
+        train_data (pd.DataFrame or pd.Series): historical training data.
+        forecast_index (pd.Index or list): index for the forecast period.
+        **kwargs: additional keyword arguments (unused).
+    
+    Returns:
+        pd.Series: forecast series with values following the linear trend,
+                indexed by forecast_index and named 'pred'.
+    """
+    series = train_data.iloc[:, 0] if isinstance(train_data, pd.DataFrame) else train_data
+    y_T = series.iloc[-1]
+    y_1 = series.iloc[0]
+    T = len(series)
+    
+    slope = (y_T - y_1) / (T - 1)
+    preds = []
+    for h in range(1, len(forecast_index) + 1):
+        preds.append(y_T + (h * slope))
+        
+    return pd.Series(
+        data=preds,
+        index=forecast_index,
+        name='pred'
+    )
 
 def predict_seasonal_naive(train_data, forecast_index, season_length=3):
     """
@@ -81,39 +114,6 @@ def predict_seasonal_naive(train_data, forecast_index, season_length=3):
     
     return pd.Series(
         data=forecast_values,
-        index=forecast_index,
-        name='pred'
-    )
-
-def predict_random_walk_drift(train_data, forecast_index, **kwargs):
-    """
-    Random Walk with Drift: Projects future values using a linear trend based on historical drift.
-    
-    This baseline method calculates the average slope (drift) from the first to the last observation
-    and uses it to extrapolate future values. It is suitable for non-stationary series with a 
-    consistent trend, such as GDP or other variables exhibiting growth.
-    
-    Args:
-        train_data (pd.DataFrame or pd.Series): historical training data.
-        forecast_index (pd.Index or list): index for the forecast period.
-        **kwargs: additional keyword arguments (unused).
-    
-    Returns:
-        pd.Series: forecast series with values following the linear trend,
-                indexed by forecast_index and named 'pred'.
-    """
-    series = train_data.iloc[:, 0] if isinstance(train_data, pd.DataFrame) else train_data
-    y_T = series.iloc[-1]
-    y_1 = series.iloc[0]
-    T = len(series)
-    
-    slope = (y_T - y_1) / (T - 1)
-    preds = []
-    for h in range(1, len(forecast_index) + 1):
-        preds.append(y_T + (h * slope))
-        
-    return pd.Series(
-        data=preds,
         index=forecast_index,
         name='pred'
     )
