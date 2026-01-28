@@ -187,8 +187,7 @@ def plot_augmented(variable_name, df_step, df_jitter, x_train_vals, y_train_vals
     plt.legend()
     plt.grid(True, alpha=0.3)
     
-    safe_var_name = SAFE_VAR_NAMES.get(variable_name, variable_name[:3])
-    filename = f"AUG_{safe_var_name}.png"
+    filename = f"AUG_{variable_name}.png"
     full_path = os.path.join(save_folder, filename)
     plt.savefig(full_path, dpi=300, bbox_inches='tight')
     print(f"Grafico salvato in: {full_path}")
@@ -426,8 +425,7 @@ def plot_nn_preds(variable_name, predictions_dict, train_df, val_df, test_df, mo
         
         fig.suptitle(f'{variable_name} - {model_name} predictions', fontsize=14, fontweight='bold', y=0.93)
         
-    safe_var_name = SAFE_VAR_NAMES.get(variable_name, variable_name[:3])
-    filename = f"{model_name}_{safe_var_name}.png"
+    filename = f"{model_name}_{variable_name}.png"
     
     if not os.path.isabs(save_folder):
         save_folder = os.path.abspath(save_folder)

@@ -26,7 +26,11 @@ def build_mlp_model(params, input_dim):
         if params['dropout'] > 0:
             model.add(Dropout(params['dropout']))
     model.add(Dense(1))
-    model.compile(optimizer=Adam(learning_rate=params['learning_rate']), loss='mse')
+    optimizer = Adam(
+        learning_rate=params['learning_rate'],
+        clipvalue=1.0
+        )
+    model.compile(optimizer=optimizer, loss='mse')
     
     return model
 
