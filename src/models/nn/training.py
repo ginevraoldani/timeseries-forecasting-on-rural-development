@@ -2,10 +2,6 @@ import tensorflow as tf
 from tensorflow.keras.callbacks import EarlyStopping        # type: ignore
 
 def train_model(model, X_train, y_train, X_val, y_val, batch_size, epochs=50, patience=10, extra_callbacks=None):
-    """
-    Funzione di training GENERICA (riutilizzabile per CNN, LSTM, ecc.).
-    Gestisce il fit e l'Early Stopping.
-    """
     callbacks_list = [
         EarlyStopping(
             monitor='val_loss', 
@@ -25,5 +21,4 @@ def train_model(model, X_train, y_train, X_val, y_val, batch_size, epochs=50, pa
         callbacks=callbacks_list,
         verbose=0
     )
-    
     return history, model

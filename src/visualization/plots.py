@@ -242,51 +242,63 @@ def plot_augmented(variable_name, df_step, df_jitter, x_train_vals, y_train_vals
 
 
 def plot_residuals(y_true, y_pred, variable_name, model_name, folder_name, save_plots=True):
-    """
-    Versione ottimizzata ad alta velocità per l'analisi dei residui.
-    Usa solo Matplotlib puro (niente Seaborn) per massimizzare le performance.
-    """
     if y_true is None or y_pred is None or len(y_true) == 0: return
+
+    y_true = np.array(y_true)
+    y_pred = np.array(y_pred)
+    residuals = y_true - y_pred
+
     save_folder = set_path(folder_name, PLOTS_DIR)
-    residuals = np.array(y_true) - np.array(y_pred)
 
-    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
-    fig.suptitle(f'Resid: {variable_name}', fontsize=14, fontweight='bold')
+    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+    fig.suptitle(f'Diagnostic: {variable_name} ({model_name})', fontsize=16, fontweight='bold')
+    ax = axes.ravel()
 
-    # 1. Residuals over Time (Plot semplice)
-    axes[0].plot(residuals, color='purple', linewidth=2)
-    axes[0].axhline(0, color='black', linestyle='--', linewidth=0.8)
-    axes[0].set_title("Time Plot")
-    axes[0].set_ylabel("Error")
-    axes[0].grid(True, alpha=0.3)
+    # 1. Residuals over Time
+    ax[0].plot(residuals, color='purple', linewidth=1.5)
+    ax[0].axhline(0, color='black', linestyle='--', linewidth=1)
+    ax[0].set_title("1. Residuals over Time (Homoscedasticity)")
+    ax[0].set_ylabel("Residuals")
+    ax[0].grid(True, alpha=0.3)
 
-    # 2. Distribution (Istogramma Matplotlib puro invece di Seaborn)
-    # density=True normalizza per confrontare con la curva normale
-    axes[1].hist(residuals, bins=10, density=True, color='purple', alpha=0.6, edgecolor='black')
-    
-    # Sovrapposizione Normale (Calcolo veloce vettoriale)
+    # 2. Distribution (Histogram)
+    ax[1].hist(residuals, bins=15, density=True, color='purple', alpha=0.6, edgecolor='black')
     mu, std = stats.norm.fit(residuals)
-    xmin, xmax = axes[1].get_xlim()
+    xmin, xmax = ax[1].get_xlim()
     x = np.linspace(xmin, xmax, 100)
     p = stats.norm.pdf(x, mu, std)
-    axes[1].plot(x, p, 'k', linewidth=2, label='Norm')
-    axes[1].set_title(f"Dist (Mean={mu:.2f})")
-    axes[1].legend(loc='upper right', fontsize='small')
+    ax[1].plot(x, p, 'k', linewidth=2, label=f'Norm ($\mu$={mu:.2f})')
+    ax[1].set_title("2. Residual Distribution (Normality)")
+    ax[1].legend(loc='upper right', fontsize='small')
 
-    # 3. ACF (Limitiamo i lags per evitare calcoli inutili)
-    # fft=True usa la trasformata di Fourier veloce
-    lags_to_show = min(15, len(residuals)//2 - 1)
+    # 3. ACF Plot
+    lags_to_show = min(20, len(residuals)//2 - 1)
     if lags_to_show > 1:
-        plot_acf(residuals, ax=axes[2], lags=lags_to_show, title="ACF", fft=True, zero=False)
+        plot_acf(residuals, ax=ax[2], lags=lags_to_show, title="3. Autocorrelation (Whiteness)", fft=True, zero=False)
     else:
-        axes[2].text(0.5, 0.5, "Not enough data for ACF", ha='center')
+        ax[2].text(0.5, 0.5, "Not enough data", ha='center')
 
-    plt.tight_layout()
+    # 4. scatter plot
+    ax[3].scatter(y_true, y_pred, alpha=0.6, color='tab:blue', edgecolors='k', s=40)
+    lims = [
+        np.min([ax[3].get_xlim(), ax[3].get_ylim()]),  # min of both axes
+        np.max([ax[3].get_xlim(), ax[3].get_ylim()]),  # max of both axes
+    ]
+    ax[3].plot(lims, lims, 'r--', alpha=0.75, zorder=0, label='Perfect Fit')
+    ax[3].set_xlabel('Actual Values')
+    ax[3].set_ylabel('Predicted Values')
+    ax[3].set_title("4. Actual vs Predicted (Linearity)")
+    ax[3].legend()
+    ax[3].grid(True, alpha=0.3)
+
+    plt.tight_layout(rect=[0, 0.03, 1, 0.93])
+    
     if save_plots:
-        filename = set_filename(variable_name, f"resid{model_name}")
+        filename = set_filename(variable_name, f"RESID{model_name}")
         full_path = os.path.join(save_folder, filename)
         plt.savefig(full_path, dpi=300, bbox_inches='tight')
-        print(f"Residuals saved: {full_path}")
+        print(f"Diagnostics saved: {full_path}")
+    
     plt.close()
 
 # ========================================================================================================
@@ -358,8 +370,8 @@ def plot_shallow_nn_preds(variable_name, results_dict, orig_aug_subsets, model_n
 
 # ========================================================================================================
 
-def plot_nn_preds(variable_name, predictions_dict, train_df, val_df, test_df, model_name):
-    save_folder = os.path.join(PLOTS_DIR, str(model_name))
+def plot_nn_preds(variable_name, predictions_dict, train_df, val_df, test_df, model_name, folder_name):
+    save_folder = os.path.join(PLOTS_DIR, folder_name)
 
     full_df = np.concatenate([
         train_df.values,

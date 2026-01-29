@@ -14,11 +14,11 @@ def build_mlp_model(params, input_dim):
             # Primo Layer: 2 * n
             current_units = base_units * 2
         elif i == 1:
-            # Secondo Layer: n / 2
-            current_units = base_units // 2
+            # Secondo Layer: n
+            current_units = base_units
         elif i == 2:
-            # Terzo Layer: n / 4
-            current_units = base_units // 4
+            # Terzo Layer: n / 2
+            current_units = base_units // 2
         else:
             current_units = base_units // (2 ** i)
         current_units = max(4, current_units) 
@@ -31,7 +31,6 @@ def build_mlp_model(params, input_dim):
         clipvalue=1.0
         )
     model.compile(optimizer=optimizer, loss='mse')
-    
     return model
 
 def build_cnn_model(params):
