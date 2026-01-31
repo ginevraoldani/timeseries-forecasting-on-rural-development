@@ -33,9 +33,7 @@ def build_mlp_model(params, input_dim):
     model.compile(optimizer=optimizer, loss='mse')
     return model
 
-def build_cnn_model(params):
-    """ Builds a dynamic 1D CNN, safe for short time series. """ 
-    
+def build_cnn_model(params):    
     model = Sequential()
     
     model.add(Conv1D(filters=params['filters'], 

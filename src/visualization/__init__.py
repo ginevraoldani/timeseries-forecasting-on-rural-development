@@ -2,7 +2,6 @@ from .plots import (
     plot_augmented,
     plot_forecast,
     plot_residuals,
-    plot_shallow_nn_preds,
     plot_nn_preds,
     plot_future_forecasts
 )
