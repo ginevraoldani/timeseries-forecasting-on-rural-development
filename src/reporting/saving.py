@@ -32,7 +32,7 @@ def update_leaderboard(indicator, model_name, metrics, filepath=LEADERBOARD_FILE
     except PermissionError:
         print(f"ERROR: close {filepath}.")
 
-def save_experiment_results(indicator, model_name, configuration, y_test, y_pred, years_test, y_train=None, params=None, training_time=None):
+def save_experiment_results(indicator, model_name, configuration, y_test, y_pred, years_test=None, y_train=None, params=None, training_time=None):
     print(f"Saving results for {model_name} | {indicator}...")
     try:
         all_metrics = {}

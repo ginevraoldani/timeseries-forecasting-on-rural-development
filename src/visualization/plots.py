@@ -76,9 +76,6 @@ def plot_forecast(train, test, variable_name, model_name, folder_name, predictio
     long_name = REVERSE_VAR_NAMES.get(variable_name, variable_name)
     title_text = f"{model_name} Forecast: {long_name}"
     
-    if rmse is not None:
-        title_text += f"\n(RMSE: {rmse:.4f})"
-    
     ax.set_title("\n".join(textwrap.wrap(title_text, width=70)), fontsize=14, fontweight='bold')
     ax.set_ylabel("Value")
     ax.set_xlabel("Year")

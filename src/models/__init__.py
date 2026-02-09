@@ -7,5 +7,6 @@ from .baselines import (
 )
 from .statistical import (
     predict_arima_rolling,
+    predict_arimax_rolling,
     predict_arima_family
 )
